@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mi Vaca - Restaurant Bill Sharing App
+
+A web application built with Next.js and React for sharing restaurant bills with friends. Perfect for group dinners where everyone wants to split the bill fairly!
+
+## Features
+
+- **Vaquer@ Dashboard**: Create a new "vaca" (bill sharing session), view products added by friends in real-time, and share payment QR codes
+- **Comensal Mode**: Join a vaca via QR code, add products you're consuming, and view payment QR when ready
+- **Real-time Updates**: See products being added as they happen (updates every 2 seconds)
+- **Automatic Tip Calculation**: 10% tip is automatically added to the total
+- **QR Code Integration**: Generate QR codes for joining and upload QR codes for payment
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ installed
+- npm or yarn package manager
+
+### Installation
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Run the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How to Use
 
-## Learn More
+### As Vaquer@ (Organizer)
 
-To learn more about Next.js, take a look at the following resources:
+1. Go to the home page and enter a name for your vaca (e.g., "Cena en el restaurante")
+2. Click "Crear Nueva Vaca"
+3. You'll be redirected to your dashboard where you can:
+   - See the QR code to share with friends
+   - View products as they're added by comensales
+   - Upload a payment QR code when ready
+   - See the total with automatic 10% tip
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### As Comensal (Friend)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Scan the QR code shared by the vaquer@
+2. Enter your name to join the vaca
+3. Add products you're consuming:
+   - Product name
+   - Price from menu
+   - Quantity
+4. You can add multiple products
+5. When the vaquer@ shares the payment QR, you'll see it on your screen
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Next.js 16** - React framework with App Router
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **qrcode.react** - QR code generation
+- **UUID** - Unique ID generation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+/app
+  /api          - API routes
+  /vaquero      - Vaquer@ dashboard pages
+  /comensal     - Comensal pages
+  page.tsx      - Home page
+/lib            - Store and utilities
+/types          - TypeScript type definitions
+```
+
+## Notes
+
+- The app uses an in-memory store for simplicity. In production, you'd want to use a database (PostgreSQL, MongoDB, etc.)
+- Real-time updates use polling (every 2 seconds). For better performance, consider using WebSockets or Server-Sent Events
+- Authentication is simplified for MVP. In production, add proper user authentication
+
+## License
+
+MIT
