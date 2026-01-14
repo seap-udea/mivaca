@@ -27,6 +27,10 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: '/vaca-esferica-jz.webp',
   },
+  other: {
+    // AdSense verification - Google puede detectar esto para verificación
+    'google-adsense-account': 'ca-pub-3375122749252035',
+  },
 };
 
 function getVersionDate(): string {
