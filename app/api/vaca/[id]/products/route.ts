@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { producto, valorEnCarta, numero, comensalId, comensalName } = await request.json();
+    const { producto, valorEnCarta, numero, comensalId, comensalName, addedByVaquero, distributionGroupId } = await request.json();
 
     if (!producto || !valorEnCarta || !numero || !comensalId) {
       return NextResponse.json(
@@ -22,6 +22,8 @@ export async function POST(
       numero: Number(numero),
       comensalId,
       comensalName,
+      addedByVaquero: addedByVaquero === true,
+      distributionGroupId: distributionGroupId || undefined,
     });
 
     const total = store.calculateTotal(id);

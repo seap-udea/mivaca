@@ -6,19 +6,20 @@ import Image from 'next/image';
 
 export default function Home() {
   const [vacaName, setVacaName] = useState('');
+  const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleCreateVaca = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vacaName.trim()) return;
+    if (!vacaName.trim() || !vaqueroName.trim()) return;
 
     setLoading(true);
     try {
       const response = await fetch('/api/vaca/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: vacaName }),
+        body: JSON.stringify({ name: vacaName, vaqueroName: vaqueroName.trim() }),
       });
 
       if (!response.ok) {
@@ -37,7 +38,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [vacaName, router]);
+  }, [vacaName, vaqueroName, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -61,6 +62,22 @@ export default function Home() {
         
         <form onSubmit={handleCreateVaca} className="space-y-4">
           <div>
+            <label htmlFor="vaqueroName" className="block text-sm font-medium text-gray-700 mb-2">
+              Nombre vaquer@
+            </label>
+            <input
+              id="vaqueroName"
+              type="text"
+              value={vaqueroName}
+              onChange={(e) => setVaqueroName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Ej. Pepita Pérez
+            </p>
+          </div>
+          <div>
             <label htmlFor="vacaName" className="block text-sm font-medium text-gray-700 mb-2">
               Nombre de la Vaca
             </label>
@@ -69,10 +86,12 @@ export default function Home() {
               type="text"
               value={vacaName}
               onChange={(e) => setVacaName(e.target.value)}
-              placeholder="Ej: Cena en el restaurante"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               required
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Ej. Cena en el restaurante
+            </p>
           </div>
           
           <button

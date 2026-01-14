@@ -193,7 +193,15 @@ export default function ComensalPage() {
       return;
     }
     
-    if (!paymentAmount || Number(paymentAmount) <= 0) {
+    // Improved validation: trim and parse the amount
+    const trimmedAmount = paymentAmount.trim();
+    if (!trimmedAmount) {
+      alert('Por favor ingresa el valor pagado');
+      return;
+    }
+    
+    const amountValue = parseFloat(trimmedAmount);
+    if (isNaN(amountValue) || amountValue <= 0 || !isFinite(amountValue)) {
       alert('Por favor ingresa un valor válido mayor a 0');
       return;
     }
@@ -206,7 +214,7 @@ export default function ComensalPage() {
         body: JSON.stringify({
           comensalId,
           consignadorName: consignadorName.trim(),
-          amount: Number(paymentAmount),
+          amount: parseFloat(paymentAmount.trim()),
         }),
       });
 
@@ -219,7 +227,6 @@ export default function ComensalPage() {
       // Clear form
       setConsignadorName('');
       setPaymentAmount('');
-      alert('Pago registrado exitosamente');
       setHasPaid(true);
       fetchVaca();
       fetchPayments();
@@ -298,7 +305,9 @@ export default function ComensalPage() {
           <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
             Unirse a la Vaca
           </h1>
-          <p className="text-gray-600 text-center mb-6">{vaca.name}</p>
+          <p className="text-gray-600 text-center mb-6">
+            {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
+          </p>
           
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
@@ -310,10 +319,12 @@ export default function ComensalPage() {
                 type="text"
                 value={comensalName}
                 onChange={(e) => setComensalName(e.target.value)}
-                placeholder="Ingresa tu nombre"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Ej. Juan Pérez
+              </p>
             </div>
             
             <button
@@ -343,8 +354,10 @@ export default function ComensalPage() {
               priority
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">{vaca.name}</h1>
-          <p className="text-gray-600 text-sm">Hola, {comensalName}!</p>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+            {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
+          </h1>
+          <p className="text-gray-600 text-sm">¡A comer se dijo, {comensalName}!</p>
         </div>
 
         {/* Add Products Form */}
@@ -352,27 +365,29 @@ export default function ComensalPage() {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Agregar Productos
           </h2>
-          {hasPaid && (
+          {(hasPaid || vaca?.restaurantBillTotal) && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                Ya has realizado tu pago. No puedes agregar más productos.
+                {hasPaid 
+                  ? 'Ya has realizado tu pago. No puedes agregar más productos.'
+                  : 'El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.'}
               </p>
             </div>
           )}
-          <form onSubmit={handleSubmitProducts} className="space-y-4">
+          <form onSubmit={handleSubmitProducts} className={`space-y-4 ${hasPaid || vaca?.restaurantBillTotal ? 'pointer-events-none opacity-50' : ''}`}>
             {products.map((product, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-end">
+              <div key={index} className="grid grid-cols-12 gap-2 items-start">
                 <div className="col-span-5">
                   <label className="block text-xs text-gray-600 mb-1">Producto</label>
                   <input
                     type="text"
                     value={product.producto}
                     onChange={(e) => updateProduct(index, 'producto', e.target.value)}
-                    placeholder="Ej: Pollo a la plancha"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    disabled={hasPaid}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-0.5">Ej. Pollo a la plancha</p>
                 </div>
                 <div className="col-span-3">
                   <label className="block text-xs text-gray-600 mb-1">Valor</label>
@@ -380,12 +395,12 @@ export default function ComensalPage() {
                     type="number"
                     value={product.valorEnCarta || ''}
                     onChange={(e) => updateProduct(index, 'valorEnCarta', Number(e.target.value))}
-                    placeholder="0"
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    disabled={hasPaid}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-0.5">Sin puntos ni '$'</p>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">Cant.</label>
@@ -394,17 +409,20 @@ export default function ComensalPage() {
                     value={product.numero}
                     onChange={(e) => updateProduct(index, 'numero', Number(e.target.value))}
                     min="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    disabled={hasPaid}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-0.5">Cantidad</p>
                 </div>
                 <div className="col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1 opacity-0">Eliminar</label>
                   {products.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeProduct(index)}
-                      className="w-full py-2 bg-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-200"
+                      disabled={hasPaid || !!vaca?.restaurantBillTotal}
+                      className="w-full py-2 bg-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       ×
                     </button>
@@ -417,7 +435,7 @@ export default function ComensalPage() {
               <button
                 type="button"
                 onClick={addProductField}
-                disabled={hasPaid}
+                disabled={hasPaid || !!vaca?.restaurantBillTotal}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Agregar otro producto"
               >
@@ -425,7 +443,7 @@ export default function ComensalPage() {
               </button>
               <button
                 type="submit"
-                disabled={submitting || hasPaid}
+                disabled={submitting || hasPaid || !!vaca?.restaurantBillTotal}
                 className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Agregar productos"
               >
@@ -453,13 +471,13 @@ export default function ComensalPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-gray-800">
-                      ${(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
                     </p>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
-                      disabled={hasPaid}
+                      disabled={hasPaid || !!vaca?.restaurantBillTotal}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={hasPaid ? "No puedes eliminar productos después de pagar" : "Eliminar producto"}
+                      title={hasPaid ? "No puedes eliminar productos después de pagar" : vaca?.restaurantBillTotal ? "No puedes eliminar productos después de establecer el valor total de la cuenta" : "Eliminar producto"}
                       aria-label={`Eliminar producto ${product.producto}`}
                     >
                       <svg
@@ -483,15 +501,15 @@ export default function ComensalPage() {
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal:</span>
-                  <span>${mySubtotal.toLocaleString('es-CO')}</span>
+                  <span>${Math.round(mySubtotal).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Propina (10%):</span>
-                  <span>${myTip.toLocaleString('es-CO')}</span>
+                  <span>${Math.round(myTip).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
                   <span>Mi Total:</span>
-                  <span>${myTotal.toLocaleString('es-CO')}</span>
+                  <span>${Math.round(myTotal).toLocaleString('es-CO')}</span>
                 </div>
               </div>
             </div>
@@ -520,8 +538,23 @@ export default function ComensalPage() {
           </div>
         )}
 
+        {/* Bre-B Key */}
+        {vaca.brebKey && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 text-center">
+              Llave de <span className="bre-b-text">Bre-B</span>
+            </h2>
+            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2 text-center">Usa esta llave para realizar el pago:</p>
+              <p className="text-2xl font-bold text-indigo-700 break-all text-center">
+                {vaca.brebKey}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Payment Form */}
-        {vaca.paymentQRCode && myTotal > 0 && (
+        {(vaca.paymentQRCode || vaca.brebKey) && myTotal > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Registrar Pago
@@ -537,6 +570,11 @@ export default function ComensalPage() {
                 <p className="text-sm text-gray-600 mb-4">
                   Indica que ya realizaste el pago:
                 </p>
+                <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
+                  <p className="text-lg font-bold text-indigo-700 text-center">
+                    Tu total a pagar: ${Math.round(myTotal).toLocaleString('es-CO')}
+                  </p>
+                </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
               <div>
                 <label htmlFor="consignadorName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -547,11 +585,13 @@ export default function ComensalPage() {
                   type="text"
                   value={consignadorName}
                   onChange={(e) => setConsignadorName(e.target.value)}
-                  placeholder="Ej: Juan Pérez"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={hasPaid}
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Ej. Juan Pérez
+                </p>
               </div>
               <div>
                 <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
@@ -562,15 +602,14 @@ export default function ComensalPage() {
                   type="number"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={`${myTotal.toLocaleString('es-CO')}`}
                   min="0"
-                  step="100"
+                  step="1"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={hasPaid}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Tu total a pagar: ${myTotal.toLocaleString('es-CO')}
+                  Ingresa el valor en número sin puntos, ni signo '$'
                 </p>
               </div>
               <button

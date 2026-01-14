@@ -5,6 +5,8 @@ export interface Product {
   numero: number;
   comensalId: string;
   comensalName?: string;
+  addedByVaquero?: boolean; // Indica si el producto fue agregado por el vaquero
+  distributionGroupId?: string; // ID de grupo para productos distribuidos entre todos los comensales
   addedAt: Date;
 }
 
@@ -13,8 +15,11 @@ export interface Vaca {
   name: string;
   createdAt: Date;
   vaqueroId: string;
+  vaqueroName?: string; // Nombre del vaquero
   products: Product[];
   paymentQRCode?: string; // Base64 encoded image or URL
+  brebKey?: string; // Llave de Bre-B (sistema bancario colombiano)
+  restaurantBillTotal?: number; // Valor total de la cuenta del restaurante
   isActive: boolean;
 }
 

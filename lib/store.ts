@@ -12,12 +12,13 @@ class VacaStore {
   private comensales: Map<string, Comensal> = new Map();
   private payments: Map<string, Payment> = new Map();
 
-  createVaca(name: string, vaqueroId: string): Vaca {
+  createVaca(name: string, vaqueroId: string, vaqueroName?: string): Vaca {
     const vaca: Vaca = {
       id: uuidv4(),
       name,
       createdAt: new Date(),
       vaqueroId,
+      vaqueroName,
       products: [],
       isActive: true,
     };
@@ -89,6 +90,28 @@ class VacaStore {
     this.vacas.set(vacaId, vaca);
   }
 
+  setBreBKey(vacaId: string, brebKey: string): void {
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+    if (brebKey.trim() === '') {
+      delete vaca.brebKey;
+    } else {
+      vaca.brebKey = brebKey;
+    }
+    this.vacas.set(vacaId, vaca);
+  }
+
+  setRestaurantBillTotal(vacaId: string, total: number): void {
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+    vaca.restaurantBillTotal = total;
+    this.vacas.set(vacaId, vaca);
+  }
+
   calculateTotal(vacaId: string): number {
     const vaca = this.vacas.get(vacaId);
     if (!vaca) {
@@ -147,7 +170,10 @@ let storeInstance: VacaStore;
 if (process.env.NODE_ENV !== 'production') {
   // In development, use global to persist across hot reloads
   // But recreate if methods are missing (hot reload issue)
-  if (!globalThis.__vacaStore || typeof globalThis.__vacaStore.addPayment !== 'function') {
+  if (!globalThis.__vacaStore || 
+      typeof globalThis.__vacaStore.addPayment !== 'function' ||
+      typeof globalThis.__vacaStore.setBreBKey !== 'function' ||
+      typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function') {
     globalThis.__vacaStore = new VacaStore();
   }
   storeInstance = globalThis.__vacaStore;
