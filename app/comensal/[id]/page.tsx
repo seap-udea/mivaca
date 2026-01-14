@@ -5,6 +5,10 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
+import RestaurantBanner from '@/components/RestaurantBanner';
+import AdSenseBanner from '@/components/AdSenseBanner';
+import { getRandomActiveAds } from '@/lib/restaurantAds';
+import { adsConfig } from '@/lib/adsConfig';
 
 export default function ComensalPage() {
   const params = useParams();
@@ -335,7 +339,7 @@ export default function ComensalPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/vaca-esferica.webp" 
+              src="/vaca-esferica-jz.webp" 
               alt="Vaca Esférica" 
               width={80}
               height={80}
@@ -387,7 +391,7 @@ export default function ComensalPage() {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/vaca-esferica.webp" 
+              src="/vaca-esferica-jz.webp" 
               alt="Vaca Esférica" 
               width={80}
               height={80}
@@ -674,6 +678,24 @@ export default function ComensalPage() {
             )}
           </div>
         )}
+        
+        {/* Banners automáticos de AdSense o restaurantes manuales */}
+        {adsConfig.enabled && adsConfig.adUnits.compact ? (
+          <div className="mt-6">
+            <AdSenseBanner 
+              adSlot={adsConfig.adUnits.compact}
+              adFormat="auto"
+              fullWidthResponsive={true}
+            />
+          </div>
+        ) : getRandomActiveAds(1).length > 0 ? (
+          <div className="mt-6">
+            <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
+            {getRandomActiveAds(1).map((ad) => (
+              <RestaurantBanner key={ad.id} ad={ad} variant="compact" />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );

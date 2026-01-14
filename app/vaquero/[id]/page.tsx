@@ -672,7 +672,7 @@ export default function VaqueroDashboard() {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/vaca-esferica.webp" 
+              src="/vaca-esferica-jz.webp" 
               alt="Vaca Esférica" 
               width={80}
               height={80}

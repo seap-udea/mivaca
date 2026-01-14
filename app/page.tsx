@@ -3,12 +3,19 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import RestaurantBanner from '@/components/RestaurantBanner';
+import AdSenseBanner from '@/components/AdSenseBanner';
+import { getRandomActiveAds } from '@/lib/restaurantAds';
+import { adsConfig } from '@/lib/adsConfig';
 
 export default function Home() {
   const [vacaName, setVacaName] = useState('');
   const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  
+  // Obtener un banner aleatorio de restaurante (solo si AdSense no está habilitado)
+  const restaurantAds = adsConfig.enabled ? [] : getRandomActiveAds(1);
 
   const handleCreateVaca = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +52,7 @@ export default function Home() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="flex justify-center mb-4">
           <Image 
-            src="/vaca-esferica.webp" 
+            src="/vaca-esferica-jz.webp" 
             alt="Vaca Esférica" 
             width={96}
             height={96}
@@ -110,6 +117,25 @@ export default function Home() {
           </p>
         </div>
       </div>
+      
+      {/* Banners automáticos de AdSense o restaurantes manuales */}
+      {adsConfig.enabled && adsConfig.adUnits.compact ? (
+        <div className="mt-6 max-w-md mx-auto">
+          <AdSenseBanner 
+            adSlot={adsConfig.adUnits.compact}
+            adFormat="auto"
+            fullWidthResponsive={true}
+            className="mb-3"
+          />
+        </div>
+      ) : restaurantAds.length > 0 ? (
+        <div className="mt-6 max-w-md mx-auto">
+          <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
+          {restaurantAds.map((ad) => (
+            <RestaurantBanner key={ad.id} ad={ad} variant="compact" className="mb-3" />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
