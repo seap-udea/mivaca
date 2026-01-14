@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
+import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
 
 export default function ComensalPage() {
@@ -25,6 +26,7 @@ export default function ComensalPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
+  const confettiTriggeredRef = useRef(false);
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -228,6 +230,45 @@ export default function ComensalPage() {
       setConsignadorName('');
       setPaymentAmount('');
       setHasPaid(true);
+      
+      // Trigger confetti celebration when payment is successfully registered
+      if (!confettiTriggeredRef.current) {
+        confettiTriggeredRef.current = true;
+        
+        // Launch confetti animation
+        const duration = 3000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        function randomInRange(min: number, max: number) {
+          return Math.random() * (max - min) + min;
+        }
+
+        const interval: NodeJS.Timeout = setInterval(function() {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+          
+          // Launch from left
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+          });
+          
+          // Launch from right
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+          });
+        }, 250);
+      }
+      
       fetchVaca();
       fetchPayments();
     } catch (error) {
@@ -475,9 +516,17 @@ export default function ComensalPage() {
                     </p>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
-                      disabled={hasPaid || !!vaca?.restaurantBillTotal}
+                      disabled={hasPaid || !!vaca?.restaurantBillTotal || product.addedByVaquero}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={hasPaid ? "No puedes eliminar productos después de pagar" : vaca?.restaurantBillTotal ? "No puedes eliminar productos después de establecer el valor total de la cuenta" : "Eliminar producto"}
+                      title={
+                        hasPaid 
+                          ? "No puedes eliminar productos después de pagar" 
+                          : vaca?.restaurantBillTotal 
+                            ? "No puedes eliminar productos después de establecer el valor total de la cuenta"
+                            : product.addedByVaquero
+                              ? "No puedes eliminar productos agregados por el vaquero"
+                              : "Eliminar producto"
+                      }
                       aria-label={`Eliminar producto ${product.producto}`}
                     >
                       <svg

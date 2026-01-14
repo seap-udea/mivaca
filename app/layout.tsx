@@ -80,7 +80,7 @@ export default function RootLayout({
         </main>
         <footer className="w-full py-4 px-4 text-center text-sm text-gray-600 border-t border-gray-200 bg-white">
           <p>
-            Desarrollado en Cursor por{' '}
+            <i>Vibe coded</i> en Cursor por{' '}
             <a 
               href="mailto:zuluagajorge@gmail.com" 
               className="text-indigo-600 hover:text-indigo-800 hover:underline"
