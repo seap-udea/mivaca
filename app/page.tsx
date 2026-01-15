@@ -4,9 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import RestaurantBanner from '@/components/RestaurantBanner';
-import AdSenseBanner from '@/components/AdSenseBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
-import { adsConfig } from '@/lib/adsConfig';
 
 export default function Home() {
   const tutorialUrl = 'https://www.youtube.com/watch?v=kh_TDaQsV8U';
@@ -15,11 +13,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const hasAdSlot = !!adsConfig.adUnits.compact;
-  const adsEnabled = adsConfig.enabled && hasAdSlot;
-
-  // Obtener un banner aleatorio de restaurante (fallback si no hay AdSense listo)
-  const restaurantAds = adsEnabled ? [] : getRandomActiveAds(1);
+  // Banners manuales de restaurantes (alternativa a AdSense)
+  const restaurantAds = getRandomActiveAds(1);
 
   const handleCreateVaca = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,17 +149,8 @@ export default function Home() {
         </div>
       </div>
       
-      {/* Banners automáticos de AdSense o restaurantes manuales */}
-      {adsEnabled ? (
-        <div className="mt-6 w-full max-w-md">
-          <AdSenseBanner 
-            adSlot={adsConfig.adUnits.compact}
-            adFormat="auto"
-            fullWidthResponsive={true}
-            className="mb-3"
-          />
-        </div>
-      ) : restaurantAds.length > 0 ? (
+      {/* Banners manuales de restaurantes */}
+      {restaurantAds.length > 0 ? (
         <div className="mt-6 w-full max-w-md">
           <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
           {restaurantAds.map((ad) => (

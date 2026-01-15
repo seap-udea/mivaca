@@ -6,7 +6,7 @@ import { join } from "path";
 import PayPalDonate from "@/components/PayPalDonate";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 
-// Ensure env-based scripts (AdSense/GA) are rendered at runtime on Render+Docker.
+// Ensure env-based scripts (GA) are rendered at runtime on Render+Docker.
 // Otherwise, static prerendering during build may miss NEXT_PUBLIC_* env vars.
 export const dynamic = "force-dynamic";
 
@@ -30,10 +30,6 @@ export const metadata: Metadata = {
     ],
     shortcut: '/favicon.ico',
     apple: '/vaca-esferica-jz.webp',
-  },
-  other: {
-    // AdSense verification - Google puede detectar esto para verificación
-    'google-adsense-account': 'ca-pub-3375122749252035',
   },
 };
 
@@ -65,10 +61,12 @@ export default function RootLayout({
 }>) {
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
-  const adsensePublisherId =
-    process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "ca-pub-3375122749252035";
-  const adsenseEnabled = process.env.NEXT_PUBLIC_ADSENSE_ENABLED !== "false";
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
+  const paypalHostedButtonId = process.env.NEXT_PUBLIC_PAYPAL_HOSTED_BUTTON_ID || "";
+  const paypalHostedButtonsClientId =
+    process.env.NEXT_PUBLIC_PAYPAL_HOSTED_BUTTONS_CLIENT_ID || "";
+  const paypalReceiverEmail =
+    process.env.NEXT_PUBLIC_PAYPAL_RECEIVER_EMAIL || "soydoctorz@gmail.com";
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -87,14 +85,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
-        {adsenseEnabled && adsensePublisherId ? (
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsensePublisherId}`}
-            crossOrigin="anonymous"
-          />
-        ) : null}
-
         {gaMeasurementId ? (
           <>
             <script
@@ -154,8 +144,9 @@ gtag('config', '${gaMeasurementId}');
             </div>
             <div className="flex justify-center">
               <PayPalDonate 
-                email="zuluagajorge@gmail.com"
-                // hostedButtonId="TU_BUTTON_ID_AQUI" // Descomenta y agrega tu ID cuando crees un botón en PayPal
+                email={paypalReceiverEmail}
+                hostedButtonId={paypalHostedButtonId || undefined}
+                hostedButtonsClientId={paypalHostedButtonsClientId || undefined}
               />
             </div>
           </div>

@@ -2,6 +2,8 @@
 
 Una aplicación web construida con Next.js y React para compartir cuentas de restaurante con amigos. ¡Perfecta para cenas en grupo donde todos quieren dividir la cuenta de manera justa!
 
+🎥 **Video tutorial**: [Ver en YouTube](https://www.youtube.com/watch?v=kh_TDaQsV8U)
+
 🌐 **Versión en vivo**: [mivaca.onrender.com](https://mivaca.onrender.com)
 
 ## Características
@@ -101,6 +103,8 @@ npm run dev
 ## Despliegue
 
 La aplicación incluye un Dockerfile para despliegue en contenedores. Consulta `DEPLOYMENT.md` para instrucciones detalladas de despliegue en Render u otras plataformas.
+
+🧑‍💻 **Cómo fue desarrollada**: Esta app fue desarrollada usando *Vibe Coding* en Cursor, con ayuda de modelos de IA generativa (LLMs) para ideación, iteración de UI y generación/refactor de código, además de pruebas y ajustes manuales.
 
 ## Licencia
 
