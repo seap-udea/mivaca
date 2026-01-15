@@ -62,11 +62,11 @@ export default function RootLayout({
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
-  const paypalHostedButtonId = process.env.NEXT_PUBLIC_PAYPAL_HOSTED_BUTTON_ID || "";
-  const paypalHostedButtonsClientId =
-    process.env.NEXT_PUBLIC_PAYPAL_HOSTED_BUTTONS_CLIENT_ID || "";
   const paypalReceiverEmail =
     process.env.NEXT_PUBLIC_PAYPAL_RECEIVER_EMAIL || "soydoctorz@gmail.com";
+  const paypalDonateUrl =
+    process.env.NEXT_PUBLIC_PAYPAL_DONATE_URL ||
+    `https://www.paypal.com/donate?business=${encodeURIComponent(paypalReceiverEmail)}&currency_code=USD&item_name=Donación+para+Mi+Vaca`;
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -144,9 +144,7 @@ gtag('config', '${gaMeasurementId}');
             </div>
             <div className="flex justify-center">
               <PayPalDonate 
-                email={paypalReceiverEmail}
-                hostedButtonId={paypalHostedButtonId || undefined}
-                hostedButtonsClientId={paypalHostedButtonsClientId || undefined}
+                donateUrl={paypalDonateUrl}
               />
             </div>
           </div>
