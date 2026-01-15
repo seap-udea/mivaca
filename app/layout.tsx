@@ -111,6 +111,20 @@ export default function RootLayout({
                 Última versión: {formatDate(versionDate)}
               </span>
             </p>
+            <div className="flex justify-center gap-4 text-xs mb-3">
+              <a
+                href="/acerca"
+                className="text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                Acerca
+              </a>
+              <a
+                href="/privacidad"
+                className="text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                Privacidad
+              </a>
+            </div>
             <div className="flex justify-center">
               <PayPalDonate 
                 email="zuluagajorge@gmail.com"
