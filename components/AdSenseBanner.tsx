@@ -19,9 +19,13 @@ export default function AdSenseBanner({
   fullWidthResponsive = true,
 }: AdSenseBannerProps) {
   const adRef = useRef<HTMLDivElement>(null);
+  const didInitRef = useRef(false);
 
   useEffect(() => {
     if (!adsConfig.enabled || !adSlot) return;
+    // In dev (React strict mode + HMR) effects can run multiple times.
+    // AdSense errors if we push twice for the same <ins>.
+    if (didInitRef.current) return;
 
     try {
       // Inicializar el array si no existe
@@ -30,7 +34,19 @@ export default function AdSenseBanner({
       // Esperar a que el script se cargue y luego hacer push
       const initAd = () => {
         try {
+          const ins = adRef.current?.querySelector('ins.adsbygoogle') as HTMLElement | null;
+          if (!ins) return;
+
+          // If AdSense already filled this ins, don't push again.
+          // Google sets data-adsbygoogle-status on the <ins>.
+          const status = ins.getAttribute('data-adsbygoogle-status');
+          if (status && status !== '') {
+            didInitRef.current = true;
+            return;
+          }
+
           (window.adsbygoogle = window.adsbygoogle || []).push({});
+          didInitRef.current = true;
         } catch (error) {
           console.error('Error pushing AdSense ad:', error);
         }
