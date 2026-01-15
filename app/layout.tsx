@@ -60,6 +60,9 @@ export default function RootLayout({
 }>) {
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
+  const adsensePublisherId =
+    process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "ca-pub-3375122749252035";
+  const adsenseEnabled = process.env.NEXT_PUBLIC_ADSENSE_ENABLED !== "false";
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -77,6 +80,15 @@ export default function RootLayout({
   
   return (
     <html lang="en" className="h-full">
+      <head>
+        {adsenseEnabled && adsensePublisherId ? (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsensePublisherId}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >

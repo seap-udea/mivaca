@@ -20,7 +20,9 @@ export const adsConfig = {
     // Banner horizontal (728x90 o responsive)
     banner: process.env.NEXT_PUBLIC_ADSENSE_BANNER_ID || '',
     // Banner compacto (320x100 o responsive)
-    compact: process.env.NEXT_PUBLIC_ADSENSE_COMPACT_ID || '',
+    // Nota: en builds Docker, a veces Render no inyecta env vars en build-time.
+    // Dejamos un default para que el slot exista incluso si falta la env var en build.
+    compact: process.env.NEXT_PUBLIC_ADSENSE_COMPACT_ID || '2946382408',
     // Banner vertical (300x250)
     vertical: process.env.NEXT_PUBLIC_ADSENSE_VERTICAL_ID || '',
   },
