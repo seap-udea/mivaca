@@ -6,6 +6,10 @@ import { join } from "path";
 import PayPalDonate from "@/components/PayPalDonate";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 
+// Ensure env-based scripts (AdSense/GA) are rendered at runtime on Render+Docker.
+// Otherwise, static prerendering during build may miss NEXT_PUBLIC_* env vars.
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
