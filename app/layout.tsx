@@ -4,6 +4,7 @@ import "./globals.css";
 import { readFileSync } from "fs";
 import { join } from "path";
 import PayPalDonate from "@/components/PayPalDonate";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,6 +64,7 @@ export default function RootLayout({
   const adsensePublisherId =
     process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || "ca-pub-3375122749252035";
   const adsenseEnabled = process.env.NEXT_PUBLIC_ADSENSE_ENABLED !== "false";
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -88,10 +90,30 @@ export default function RootLayout({
             crossOrigin="anonymous"
           />
         ) : null}
+
+        {gaMeasurementId ? (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gaMeasurementId}');
+`,
+              }}
+            />
+          </>
+        ) : null}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >
+        {gaMeasurementId ? <GoogleAnalytics measurementId={gaMeasurementId} /> : null}
         <main className="flex-1">
           {children}
         </main>
