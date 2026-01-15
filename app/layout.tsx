@@ -85,7 +85,7 @@ export default function RootLayout({
   };
   
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         {adsenseEnabled && adsensePublisherId ? (
           <script
@@ -115,6 +115,7 @@ gtag('config', '${gaMeasurementId}');
         ) : null}
       </head>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >
         {gaMeasurementId ? <GoogleAnalytics measurementId={gaMeasurementId} /> : null}

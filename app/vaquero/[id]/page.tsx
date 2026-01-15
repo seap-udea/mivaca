@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Vaca, Product, Comensal, Payment } from '@/types';
 
 export default function VaqueroDashboard() {
+  const tutorialUrl = 'https://www.youtube.com/watch?v=kh_TDaQsV8U';
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
@@ -684,6 +685,37 @@ export default function VaqueroDashboard() {
           <p className="text-gray-600 text-sm text-center">
             Creada el {new Date(vaca.createdAt).toLocaleString('es-CO')}
           </p>
+          <div className="mt-4 flex justify-center">
+            <a
+              href={tutorialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
+              aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.26a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Ver video tutorial
+            </a>
+          </div>
         </div>
 
         {/* QR Code for Comensales */}
