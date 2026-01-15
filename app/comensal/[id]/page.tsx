@@ -680,7 +680,7 @@ export default function ComensalPage() {
         )}
         
         {/* Banners automáticos de AdSense o restaurantes manuales */}
-        {adsConfig.enabled && adsConfig.adUnits.compact ? (
+        {adsConfig.enabled && !!adsConfig.adUnits.compact ? (
           <div className="mt-6">
             <AdSenseBanner 
               adSlot={adsConfig.adUnits.compact}

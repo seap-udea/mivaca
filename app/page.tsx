@@ -13,9 +13,12 @@ export default function Home() {
   const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  
-  // Obtener un banner aleatorio de restaurante (solo si AdSense no está habilitado)
-  const restaurantAds = adsConfig.enabled ? [] : getRandomActiveAds(1);
+
+  const hasAdSlot = !!adsConfig.adUnits.compact;
+  const adsEnabled = adsConfig.enabled && hasAdSlot;
+
+  // Obtener un banner aleatorio de restaurante (fallback si no hay AdSense listo)
+  const restaurantAds = adsEnabled ? [] : getRandomActiveAds(1);
 
   const handleCreateVaca = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +122,7 @@ export default function Home() {
       </div>
       
       {/* Banners automáticos de AdSense o restaurantes manuales */}
-      {adsConfig.enabled && adsConfig.adUnits.compact ? (
+      {adsEnabled ? (
         <div className="mt-6 max-w-md mx-auto">
           <AdSenseBanner 
             adSlot={adsConfig.adUnits.compact}

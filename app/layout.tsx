@@ -4,7 +4,6 @@ import "./globals.css";
 import { readFileSync } from "fs";
 import { join } from "path";
 import PayPalDonate from "@/components/PayPalDonate";
-import AdSenseScript from "@/components/AdSenseScript";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -81,7 +80,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >
-        <AdSenseScript />
         <main className="flex-1">
           {children}
         </main>
