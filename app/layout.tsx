@@ -62,8 +62,12 @@ export default function RootLayout({
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
-  const donateUrl =
-    process.env.NEXT_PUBLIC_DONATE_URL || "https://checkout.wompi.co/l/VPOS_b8ZsWy";
+  const singlePaymentUrl =
+    process.env.NEXT_PUBLIC_MP_SINGLE_PAYMENT_URL ||
+    "https://link.mercadopago.com.co/appmivaca";
+  const subscriptionUrl =
+    process.env.NEXT_PUBLIC_MP_SUBSCRIPTION_URL ||
+    "https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=21d27377c2214d70be1e66e5e7de4a6b";
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -141,7 +145,8 @@ gtag('config', '${gaMeasurementId}');
             </div>
             <div className="flex justify-center">
               <PayPalDonate 
-                donateUrl={donateUrl}
+                singlePaymentUrl={singlePaymentUrl}
+                subscriptionUrl={subscriptionUrl}
               />
             </div>
           </div>
