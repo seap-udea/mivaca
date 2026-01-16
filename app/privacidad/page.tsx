@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Política de Privacidad · Mi Vaca",
-  description: "Política de privacidad y uso de cookies/ads para Mi Vaca.",
+  description: "Política de privacidad para Mi Vaca.",
 };
 
 export default function PrivacidadPage() {
@@ -24,36 +24,24 @@ export default function PrivacidadPage() {
             La app recopila la información que ingresas para operar la “vaca”
             (por ejemplo: nombres, productos, valores y pagos registrados). En
             esta versión, el almacenamiento es principalmente <b>en memoria</b>,
-            por lo que los datos pueden reiniciarse si el servidor se reinicia.
+            por lo que los datos no se almacenan permanentemente en un servidor.
+          </p>
+          <p className="text-gray-700 mb-4">
+            Este sitio <b>no rastrea</b> a los usuarios y <b>no requiere</b>{" "}
+            información personal en ningún momento.
           </p>
 
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            2. Cookies, anuncios y medición
-          </h2>
-          <p className="text-gray-700 mb-4">
-            Este sitio puede usar <b>Google AdSense</b> para mostrar anuncios.
-            AdSense puede usar cookies o identificadores para personalización,
-            medición y prevención de fraude, según sus políticas y tu
-            configuración/regulación aplicable.
-          </p>
-          <p className="text-gray-700 mb-4">
-            Puedes obtener más información en las políticas de Google. (Las
-            preferencias de anuncios y cookies dependen de tu navegador/cuenta y
-            de la configuración de Google.)
-          </p>
-
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            3. Con quién compartimos información
+            2. Con quién compartimos información
           </h2>
           <p className="text-gray-700 mb-4">
             No vendemos tu información. Podemos compartir datos mínimos con
             proveedores necesarios para operar el servicio (por ejemplo, la
-            plataforma de hosting) y con proveedores de anuncios (por ejemplo,
-            Google) en la medida en que sea necesario para servir anuncios.
+            plataforma de hosting).
           </p>
 
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            4. Seguridad
+            3. Seguridad
           </h2>
           <p className="text-gray-700 mb-4">
             Tomamos medidas razonables para proteger la información, pero ningún
@@ -61,7 +49,7 @@ export default function PrivacidadPage() {
           </p>
 
           <h2 className="text-lg font-semibold text-gray-800 mb-2">
-            5. Contacto
+            4. Contacto
           </h2>
           <p className="text-gray-700 mb-6">
             Si tienes preguntas o solicitudes relacionadas con privacidad,
@@ -87,6 +75,12 @@ export default function PrivacidadPage() {
               className="text-indigo-600 hover:text-indigo-800 hover:underline"
             >
               Acerca de
+            </Link>
+            <Link
+              href="/licencia"
+              className="text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              Licencia
             </Link>
           </div>
         </div>

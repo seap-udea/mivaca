@@ -19,8 +19,8 @@ export default function AcercaPage() {
 
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Monetización</h2>
           <p className="text-gray-700 mb-4">
-            Para sostener el proyecto, el sitio puede mostrar anuncios (Google
-            AdSense) y recibe donaciones voluntarias vía PayPal.
+            Para sostener el proyecto la app recibe donaciones voluntarias únicas
+            o periódicas ¡apoya al artista!
           </p>
 
           <h2 className="text-lg font-semibold text-gray-800 mb-2">Contacto</h2>
@@ -47,6 +47,12 @@ export default function AcercaPage() {
               className="text-indigo-600 hover:text-indigo-800 hover:underline"
             >
               Política de Privacidad
+            </Link>
+            <Link
+              href="/licencia"
+              className="text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              Licencia
             </Link>
           </div>
         </div>
