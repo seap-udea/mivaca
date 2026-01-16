@@ -62,6 +62,7 @@ export default function RootLayout({
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
+  const developerEmail = "zuluagajorge@gmail.com";
   const singlePaymentUrl =
     process.env.NEXT_PUBLIC_MP_SINGLE_PAYMENT_URL ||
     "https://link.mercadopago.com.co/appmivaca";
@@ -110,6 +111,16 @@ gtag('config', '${gaMeasurementId}');
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >
         {gaMeasurementId ? <GoogleAnalytics measurementId={gaMeasurementId} /> : null}
+        <a
+          href={`mailto:${developerEmail}?subject=${encodeURIComponent(
+            "Sugerencias para Mi Vaca (beta)"
+          )}`}
+          className="fixed top-3 left-3 z-50 inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+          title="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
+          aria-label="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
+        >
+          β
+        </a>
         <main className="flex-1">
           {children}
         </main>
@@ -118,7 +129,7 @@ gtag('config', '${gaMeasurementId}');
             <p className="mb-3">
               <i>Vibe coded</i> en Cursor por{' '}
               <a 
-                href="mailto:zuluagajorge@gmail.com" 
+                href={`mailto:${developerEmail}`}
                 className="text-indigo-600 hover:text-indigo-800 hover:underline"
               >
                 Jorge I. Zuluaga, Dr. Z

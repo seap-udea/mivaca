@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Vaca, Product, Comensal, Payment } from '@/types';
 
 export default function VaqueroDashboard() {
-  const tutorialUrl = 'https://www.youtube.com/watch?v=BQTZdqK7pz0';
+  const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;

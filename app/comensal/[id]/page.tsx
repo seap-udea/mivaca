@@ -9,7 +9,7 @@ import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
 
 export default function ComensalPage() {
-  const tutorialUrl = 'https://www.youtube.com/watch?v=BQTZdqK7pz0';
+  const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const vacaId = params.id as string;
   const [vaca, setVaca] = useState<Vaca | null>(null);
