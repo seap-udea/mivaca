@@ -7,7 +7,7 @@ import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
 
 export default function Home() {
-  const tutorialUrl = 'https://www.youtube.com/watch?v=kh_TDaQsV8U';
+  const tutorialUrl = 'https://www.youtube.com/watch?v=BQTZdqK7pz0';
   const [vacaName, setVacaName] = useState('');
   const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);

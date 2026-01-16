@@ -140,7 +140,9 @@ gtag('config', '${gaMeasurementId}');
               </a>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <div className="text-sm text-gray-700">Apoye al artista ;)</div>
+              <div className="text-sm text-gray-700">
+                Esta app es gratuita, pero puede apoyar al artista 🧑‍🎨:
+              </div>
               <PayPalDonate 
                 singlePaymentUrl={singlePaymentUrl}
                 subscriptionUrl={subscriptionUrl}
