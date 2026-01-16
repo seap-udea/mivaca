@@ -123,11 +123,7 @@ gtag('config', '${gaMeasurementId}');
               >
                 Jorge I. Zuluaga, Dr. Z
               </a>
-              {' '}© {versionYear}
-              <br />
-              <span className="text-xs text-gray-500">
-                Última versión: {formatDate(versionDate)}
-              </span>
+              {' '}© {versionYear} <span className="text-xs text-gray-500">(v.{versionDate})</span>
             </p>
             <div className="flex justify-center gap-4 text-xs mb-3">
               <a
@@ -143,7 +139,8 @@ gtag('config', '${gaMeasurementId}');
                 Privacidad
               </a>
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-sm text-gray-700">Apoye al artista ;)</div>
               <PayPalDonate 
                 singlePaymentUrl={singlePaymentUrl}
                 subscriptionUrl={subscriptionUrl}
