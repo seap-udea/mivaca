@@ -12,7 +12,7 @@ export default function PayPalDonate({
   className = '' 
 }: PayPalDonateProps) {
   return (
-    <div className={`flex flex-col items-center gap-2 ${className}`}>
+    <div className={`flex flex-row flex-wrap items-center justify-center gap-3 ${className}`}>
       <a
         href={singlePaymentUrl}
         target="_blank"
