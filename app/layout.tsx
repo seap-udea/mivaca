@@ -62,11 +62,8 @@ export default function RootLayout({
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
-  const paypalReceiverEmail =
-    process.env.NEXT_PUBLIC_PAYPAL_RECEIVER_EMAIL || "soydoctorz@gmail.com";
-  const paypalDonateUrl =
-    process.env.NEXT_PUBLIC_PAYPAL_DONATE_URL ||
-    `https://www.paypal.com/donate?business=${encodeURIComponent(paypalReceiverEmail)}&currency_code=USD&item_name=Donación+para+Mi+Vaca`;
+  const donateUrl =
+    process.env.NEXT_PUBLIC_DONATE_URL || "https://checkout.wompi.co/l/VPOS_b8ZsWy";
   
   // Format date to be more readable (e.g., "14 de enero de 2026")
   const formatDate = (dateStr: string): string => {
@@ -144,7 +141,7 @@ gtag('config', '${gaMeasurementId}');
             </div>
             <div className="flex justify-center">
               <PayPalDonate 
-                donateUrl={paypalDonateUrl}
+                donateUrl={donateUrl}
               />
             </div>
           </div>
