@@ -36,7 +36,7 @@ export default function LanguageToggle() {
   );
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-col items-center gap-1">
       {buttons.map((b) => {
         const active = lang === b.lang;
         return (
@@ -50,8 +50,8 @@ export default function LanguageToggle() {
             }}
             className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border shadow-sm transition-colors ${
               active
-                ? "bg-white border-indigo-300"
-                : "bg-white/80 border-gray-200 hover:bg-white"
+                ? "bg-white border-indigo-400 ring-2 ring-indigo-300"
+                : "bg-white/80 border-gray-200 hover:bg-white opacity-80"
             }`}
             title={b.label}
             aria-label={b.label}
