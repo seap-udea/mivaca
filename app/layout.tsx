@@ -134,7 +134,7 @@ gtag('config', '${gaMeasurementId}');
               >
                 Jorge I. Zuluaga, Dr. Z
               </a>
-              {' '}© {versionYear} <span className="text-xs text-gray-500">(v.{versionDate})</span>
+              {' '}© {versionYear} <span className="text-xs text-gray-500">(beta v.{versionDate})</span>
             </p>
             <div className="flex justify-center gap-4 text-xs mb-3">
               <a
