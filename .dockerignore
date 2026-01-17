@@ -54,6 +54,7 @@ docker-compose.yml
 # Documentation
 README.md
 *.md
+!WHATSNEW.md
 
 # CI/CD
 .github
