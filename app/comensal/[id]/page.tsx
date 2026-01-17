@@ -496,7 +496,7 @@ export default function ComensalPage() {
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
           </h1>
           <p className="text-gray-600 text-sm text-center">
-            ¡A comer se dijo, {comensalName}!
+            {tr('¡A comer se dijo,', "Let's eat,")} {comensalName}!
           </p>
           <div className="mt-4 flex justify-center">
             <a
@@ -504,7 +504,10 @@ export default function ComensalPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-              aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
+              aria-label={tr(
+                'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
+                'Watch video tutorial on YouTube (opens in a new tab)'
+              )}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -526,7 +529,7 @@ export default function ComensalPage() {
                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Ver video tutorial
+              {tr('Ver video tutorial', 'Watch tutorial')}
             </a>
           </div>
         </div>
@@ -549,7 +552,9 @@ export default function ComensalPage() {
             {products.map((product, index) => (
               <div key={index} className="grid grid-cols-12 gap-2 items-start">
                 <div className="col-span-5">
-                  <label className="block text-xs text-gray-600 mb-1">Producto</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Producto', 'Item')}
+                  </label>
                   <input
                     type="text"
                     value={product.producto}
@@ -558,10 +563,14 @@ export default function ComensalPage() {
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Ej. Pollo a la plancha</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tr('Ej. Pollo a la plancha', 'e.g. Grilled chicken')}
+                  </p>
                 </div>
                 <div className="col-span-3">
-                  <label className="block text-xs text-gray-600 mb-1">Valor</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Valor', 'Price')}
+                  </label>
                   <input
                     type="number"
                     value={product.valorEnCarta || ''}
@@ -571,10 +580,14 @@ export default function ComensalPage() {
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Sin puntos ni '$'</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tr("Sin puntos ni '$'", "No dots and no '$'")}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Cant.</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Cant.', 'Qty.')}
+                  </label>
                   <input
                     type="number"
                     value={product.numero}
@@ -584,10 +597,14 @@ export default function ComensalPage() {
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Cantidad</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tr('Cantidad', 'Quantity')}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1 opacity-0">Eliminar</label>
+                  <label className="block text-xs text-gray-600 mb-1 opacity-0">
+                    {tr('Eliminar', 'Remove')}
+                  </label>
                   {products.length > 1 && (
                     <button
                       type="button"
@@ -608,7 +625,7 @@ export default function ComensalPage() {
                 onClick={addProductField}
                 disabled={hasPaid || !!vaca?.restaurantBillTotal}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Agregar otro producto"
+                aria-label={tr('Agregar otro producto', 'Add another item')}
               >
                 {tr('+ Agregar Otro', '+ Add another')}
               </button>
@@ -616,7 +633,7 @@ export default function ComensalPage() {
                 type="submit"
                 disabled={submitting || hasPaid || !!vaca?.restaurantBillTotal}
                 className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Agregar productos"
+                aria-label={tr('Agregar productos', 'Add items')}
               >
                 {submitting ? tr('Agregando...', 'Adding...') : tr('Agregar Productos', 'Add items')}
               </button>
@@ -638,7 +655,9 @@ export default function ComensalPage() {
                 >
                   <div className="flex-1">
                     <p className="font-medium text-gray-800">{product.producto}</p>
-                    <p className="text-sm text-gray-600">Cantidad: {product.numero}</p>
+                    <p className="text-sm text-gray-600">
+                      {tr('Cantidad', 'Quantity')}: {product.numero}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-gray-800">
@@ -655,9 +674,9 @@ export default function ComensalPage() {
                             ? "No puedes eliminar productos después de establecer el valor total de la cuenta"
                             : product.addedByVaquero
                               ? "No puedes eliminar productos agregados por el vaquero"
-                              : "Eliminar producto"
+                              : tr('Eliminar producto', 'Delete item')
                       }
-                      aria-label={`Eliminar producto ${product.producto}`}
+                      aria-label={tr('Eliminar producto', 'Delete item') + ` ${product.producto}`}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -683,11 +702,13 @@ export default function ComensalPage() {
                   <span>${Math.round(mySubtotal).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Propina ({tipPercent}%):</span>
+                  <span>
+                    {tr('Propina', 'Tip')} ({tipPercent}%):
+                  </span>
                   <span>${Math.round(myTip).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
-                  <span>Mi Total:</span>
+                  <span>{tr('Mi Total', 'My total')}:</span>
                   <span>${Math.round(myTotal).toLocaleString('es-CO')}</span>
                 </div>
               </div>
@@ -808,7 +829,9 @@ export default function ComensalPage() {
         {/* Banners manuales de restaurantes */}
         {restaurantAds.length > 0 ? (
           <div className="mt-6">
-            <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
+            <p className="text-xs text-gray-500 text-center mb-2">
+              {tr('Restaurantes recomendados', 'Recommended restaurants')}
+            </p>
             {restaurantAds.map((ad) => (
               <RestaurantBanner key={ad.id} ad={ad} variant="compact" />
             ))}
