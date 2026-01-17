@@ -15,8 +15,8 @@ export default function VaqueroDashboard() {
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
-  // Show advanced sections by default so new visitors can preview the app.
-  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(true);
+  // Advanced features are off by default; user can enable them from the UI.
+  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [total, setTotal] = useState(0);
   const [paymentQR, setPaymentQR] = useState<string>('');
