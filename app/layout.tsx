@@ -62,6 +62,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const lang = await getLang();
+  const isEn = lang === "en";
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
@@ -147,19 +148,19 @@ gtag('config', '${gaMeasurementId}');
                 href="/acerca"
                 className="text-indigo-600 hover:text-indigo-800 hover:underline"
               >
-                Acerca
+                {isEn ? "About" : "Acerca"}
               </a>
               <a
                 href="/privacidad"
                 className="text-indigo-600 hover:text-indigo-800 hover:underline"
               >
-                Privacidad
+                {isEn ? "Privacy" : "Privacidad"}
               </a>
               <a
                 href="/licencia"
                 className="text-indigo-600 hover:text-indigo-800 hover:underline"
               >
-                Licencia
+                {isEn ? "License" : "Licencia"}
               </a>
               <a
                 href="/novedades"
@@ -170,7 +171,9 @@ gtag('config', '${gaMeasurementId}');
             </div>
             <div className="flex flex-col items-center gap-2">
               <div className="text-sm text-gray-700">
-                Esta app es gratuita, pero puede apoyar al artista 🧑‍🎨:
+                {isEn
+                  ? "This app is free, but you can support the artist 🧑‍🎨:"
+                  : "Esta app es gratuita, pero puede apoyar al artista 🧑‍🎨:"}
               </div>
               <PayPalDonate 
                 singlePaymentUrl={singlePaymentUrl}
