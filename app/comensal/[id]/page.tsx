@@ -30,7 +30,45 @@ export default function ComensalPage() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const confettiTriggeredRef = useRef(false);
+  const hasPaidCheckedRef = useRef(false);
   const restaurantAds = useMemo(() => getRandomActiveAds(1), []);
+
+  const launchConfetti = useCallback(() => {
+    if (confettiTriggeredRef.current) return;
+    confettiTriggeredRef.current = true;
+
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: NodeJS.Timeout = setInterval(function () {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+
+      // Launch from left
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+
+      // Launch from right
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+  }, []);
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -62,12 +100,28 @@ export default function ComensalPage() {
         const comensalPayment = data.payments.find(
           (p: Payment) => p.comensalId === comensalId
         );
-        setHasPaid(!!comensalPayment);
+        const paid = !!comensalPayment;
+        setHasPaid(paid);
+
+        // On initial load, if the comensal already paid, don't celebrate again.
+        if (!hasPaidCheckedRef.current) {
+          hasPaidCheckedRef.current = true;
+          if (paid) {
+            confettiTriggeredRef.current = true;
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
   }, [vacaId, comensalId]);
+
+  // Celebrate when payment arrives via polling (e.g., marked by vaquero)
+  useEffect(() => {
+    if (hasPaid && hasPaidCheckedRef.current && !confettiTriggeredRef.current) {
+      launchConfetti();
+    }
+  }, [hasPaid, launchConfetti]);
 
   const handleJoin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,42 +290,7 @@ export default function ComensalPage() {
       setHasPaid(true);
       
       // Trigger confetti celebration when payment is successfully registered
-      if (!confettiTriggeredRef.current) {
-        confettiTriggeredRef.current = true;
-        
-        // Launch confetti animation
-        const duration = 3000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-        function randomInRange(min: number, max: number) {
-          return Math.random() * (max - min) + min;
-        }
-
-        const interval: NodeJS.Timeout = setInterval(function() {
-          const timeLeft = animationEnd - Date.now();
-
-          if (timeLeft <= 0) {
-            return clearInterval(interval);
-          }
-
-          const particleCount = 50 * (timeLeft / duration);
-          
-          // Launch from left
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-          });
-          
-          // Launch from right
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-          });
-        }, 250);
-      }
+      launchConfetti();
       
       fetchVaca();
       fetchPayments();
@@ -281,7 +300,7 @@ export default function ComensalPage() {
     } finally {
       setSubmittingPayment(false);
     }
-  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments]);
+  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments, launchConfetti]);
 
   useEffect(() => {
     // Check if already joined

@@ -44,6 +44,7 @@ export default function VaqueroDashboard() {
   const [submittingTipPercent, setSubmittingTipPercent] = useState(false);
   const confettiTriggeredRef = useRef(false);
   const [vaqueroId, setVaqueroId] = useState<string>('');
+  const [markingPaidIds, setMarkingPaidIds] = useState<Record<string, boolean>>({});
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -326,6 +327,49 @@ export default function VaqueroDashboard() {
       setSubmittingRestaurantBill(false);
     }
   }, [vacaId, restaurantBillTotal, payments, comensales, fetchVaca]);
+
+  const handleMarkTransferred = useCallback(
+    async (comensal: Comensal, amount: number) => {
+      if (!vacaId) return;
+
+      const roundedAmount = Math.round(amount);
+      if (!isFinite(roundedAmount) || roundedAmount <= 0) {
+        alert('El total del comensal debe ser mayor a 0 para registrar el pago');
+        return;
+      }
+
+      if (!confirm(`¿Marcar como pagado a "${comensal.name}" por $${roundedAmount.toLocaleString('es-CO')}?`)) {
+        return;
+      }
+
+      setMarkingPaidIds((prev) => ({ ...prev, [comensal.id]: true }));
+      try {
+        const response = await fetch(`/api/vaca/${vacaId}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            comensalId: comensal.id,
+            consignadorName: comensal.name,
+            amount: roundedAmount,
+          }),
+        });
+
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(responseData.error || 'No se pudo registrar el pago');
+        }
+
+        await fetchPayments();
+        await fetchVaca();
+      } catch (error) {
+        console.error('Error marking transferred:', error);
+        alert(error instanceof Error ? error.message : 'Error al registrar el pago');
+      } finally {
+        setMarkingPaidIds((prev) => ({ ...prev, [comensal.id]: false }));
+      }
+    },
+    [vacaId, fetchPayments, fetchVaca]
+  );
 
   const handleTipPercentSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1470,6 +1514,18 @@ export default function VaqueroDashboard() {
                       <p className="text-sm text-gray-600">
                         Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
                       </p>
+                      {!hasPaid && comensalTotal > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkTransferred(comensal, comensalTotal)}
+                          disabled={!!markingPaidIds[comensal.id]}
+                          className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label={`Marcar como pagado: ${comensal.name}`}
+                          title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
+                        >
+                          {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center">
                       <p
@@ -1502,8 +1558,11 @@ export default function VaqueroDashboard() {
                     className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200"
                   >
                     <div>
-                      <p className="font-medium text-gray-800">{payment.consignadorName}</p>
+                      <p className="font-medium text-gray-800">
+                        {(comensales.find((c) => c.id === payment.comensalId)?.name) || 'Comensal'}
+                      </p>
                       <p className="text-sm text-gray-600">
+                        Consignó: {payment.consignadorName} ·{' '}
                         Pagado el {new Date(payment.paidAt as string | Date).toLocaleString('es-CO')}
                       </p>
                     </div>
