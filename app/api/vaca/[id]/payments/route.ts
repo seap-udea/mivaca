@@ -35,6 +35,15 @@ export async function POST(
       );
     }
 
+    // Prevent duplicate payments per comensal
+    const existing = store.getPaymentsByVaca(id).some((p) => p.comensalId === comensalId);
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Payment already registered for this comensal' },
+        { status: 400 }
+      );
+    }
+
     const payment = store.addPayment(id, comensalId, consignadorName, Number(amount));
     const totalCollected = store.getTotalCollected(id);
 

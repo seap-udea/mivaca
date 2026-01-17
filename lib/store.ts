@@ -20,6 +20,7 @@ class VacaStore {
       vaqueroId,
       vaqueroName,
       products: [],
+      tipPercent: 10,
       isActive: true,
     };
     this.vacas.set(vaca.id, vaca);
@@ -112,6 +113,19 @@ class VacaStore {
     this.vacas.set(vacaId, vaca);
   }
 
+  setTipPercent(vacaId: string, tipPercent: number): void {
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+    const normalized = Number(tipPercent);
+    if (!isFinite(normalized) || normalized < 0 || normalized > 100) {
+      throw new Error('Invalid tip percent');
+    }
+    vaca.tipPercent = normalized;
+    this.vacas.set(vacaId, vaca);
+  }
+
   calculateTotal(vacaId: string): number {
     const vaca = this.vacas.get(vacaId);
     if (!vaca) {
@@ -121,7 +135,8 @@ class VacaStore {
       (sum, product) => sum + product.valorEnCarta * product.numero,
       0
     );
-    const tip = subtotal * 0.1;
+    const tipRate = (vaca.tipPercent ?? 10) / 100;
+    const tip = subtotal * tipRate;
     return subtotal + tip;
   }
 
@@ -135,6 +150,48 @@ class VacaStore {
     return Array.from(this.comensales.values()).filter(
       (comensal) => comensal.vacaId === vacaId
     );
+  }
+
+  mergeComensalAccounts(vacaId: string, fromComensalId: string, toComensalId: string): void {
+    if (fromComensalId === toComensalId) {
+      throw new Error('Cannot merge a comensal into itself');
+    }
+
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+
+    const from = this.comensales.get(fromComensalId);
+    const to = this.comensales.get(toComensalId);
+    if (!from || !to) {
+      throw new Error('Comensal not found');
+    }
+    if (from.vacaId !== vacaId || to.vacaId !== vacaId) {
+      throw new Error('Comensales must belong to the same vaca');
+    }
+    if (from.mergedIntoId) {
+      throw new Error('Source comensal is already merged');
+    }
+    if (to.mergedIntoId) {
+      throw new Error('Target comensal is merged and cannot receive accounts');
+    }
+
+    // Move products
+    vaca.products = vaca.products.map((p) => {
+      if (p.comensalId !== fromComensalId) return p;
+      return {
+        ...p,
+        comensalId: toComensalId,
+        comensalName: to.name,
+      };
+    });
+    this.vacas.set(vacaId, vaca);
+
+    // Mark source as merged
+    from.mergedIntoId = toComensalId;
+    from.mergedAt = new Date();
+    this.comensales.set(fromComensalId, from);
   }
 
   addPayment(vacaId: string, comensalId: string, consignadorName: string, amount: number): Payment {
@@ -173,7 +230,9 @@ if (process.env.NODE_ENV !== 'production') {
   if (!globalThis.__vacaStore || 
       typeof globalThis.__vacaStore.addPayment !== 'function' ||
       typeof globalThis.__vacaStore.setBreBKey !== 'function' ||
-      typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function') {
+      typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function' ||
+      typeof globalThis.__vacaStore.setTipPercent !== 'function' ||
+      typeof globalThis.__vacaStore.mergeComensalAccounts !== 'function') {
     globalThis.__vacaStore = new VacaStore();
   }
   storeInstance = globalThis.__vacaStore;

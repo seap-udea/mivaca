@@ -7,11 +7,30 @@ import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
 import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
+import { getClientLang, type Lang } from '@/lib/langClient';
 
 export default function ComensalPage() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const vacaId = params.id as string;
+  const [lang, setLang] = useState<Lang>('es');
+  useEffect(() => {
+    setLang(getClientLang());
+  }, []);
+  const isEn = lang === 'en';
+  const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
+  const moneyFormatter = useMemo(() => {
+    const locale = isEn ? 'en-GB' : 'es-CO';
+    const fractionDigits = isEn ? 2 : 0;
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+  }, [isEn]);
+  const formatMoney = useCallback(
+    (value: number) => `$${moneyFormatter.format(Number.isFinite(value) ? value : 0)}`,
+    [moneyFormatter]
+  );
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [comensalName, setComensalName] = useState('');
   const [comensalId, setComensalId] = useState('');
@@ -30,7 +49,46 @@ export default function ComensalPage() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const confettiTriggeredRef = useRef(false);
+  const hasPaidCheckedRef = useRef(false);
+  const mergeNotifiedRef = useRef(false);
   const restaurantAds = useMemo(() => getRandomActiveAds(1), []);
+
+  const launchConfetti = useCallback(() => {
+    if (confettiTriggeredRef.current) return;
+    confettiTriggeredRef.current = true;
+
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: NodeJS.Timeout = setInterval(function () {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+
+      // Launch from left
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+
+      // Launch from right
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+  }, []);
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -62,12 +120,65 @@ export default function ComensalPage() {
         const comensalPayment = data.payments.find(
           (p: Payment) => p.comensalId === comensalId
         );
-        setHasPaid(!!comensalPayment);
+        const paid = !!comensalPayment;
+        setHasPaid(paid);
+
+        // On initial load, if the comensal already paid, don't celebrate again.
+        if (!hasPaidCheckedRef.current) {
+          hasPaidCheckedRef.current = true;
+          if (paid) {
+            confettiTriggeredRef.current = true;
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
   }, [vacaId, comensalId]);
+
+  const fetchComensalInfo = useCallback(async () => {
+    if (!comensalId) return;
+    try {
+      const response = await fetch(`/api/vaca/${vacaId}/comensales`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const found = (data.comensales || []).find(
+        (c: { id: string; name: string; mergedIntoId?: string }) => c.id === comensalId
+      );
+      if (found?.mergedIntoId) {
+        // This comensal was merged into another; reset session
+        if (!mergeNotifiedRef.current) {
+          mergeNotifiedRef.current = true;
+          alert(
+            tr(
+              'Tu cuenta fue fusionada por el vaquero. La sesión se reiniciará.',
+              'Your account was merged by the host. The session will restart.'
+            )
+          );
+        }
+        localStorage.removeItem(`comensal_${vacaId}`);
+        localStorage.removeItem(`comensalName_${vacaId}`);
+        setIsJoined(false);
+        setComensalId('');
+        setHasPaid(false);
+        setProducts([{ producto: '', valorEnCarta: 0, numero: 1 }]);
+        return;
+      }
+      if (found?.name) {
+        setComensalName(found.name);
+        localStorage.setItem(`comensalName_${vacaId}`, found.name);
+      }
+    } catch (error) {
+      console.error('Error fetching comensal info:', error);
+    }
+  }, [vacaId, comensalId]);
+
+  // Celebrate when payment arrives via polling (e.g., marked by vaquero)
+  useEffect(() => {
+    if (hasPaid && hasPaidCheckedRef.current && !confettiTriggeredRef.current) {
+      launchConfetti();
+    }
+  }, [hasPaid, launchConfetti]);
 
   const handleJoin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,12 +200,13 @@ export default function ComensalPage() {
         setComensalId(data.comensal.id);
         setIsJoined(true);
         localStorage.setItem(`comensal_${vacaId}`, data.comensal.id);
+        localStorage.setItem(`comensalName_${vacaId}`, comensalName.trim());
       }
     } catch (error) {
       console.error('Error joining:', error);
-      alert('Error al unirse a la vaca');
+      alert(tr('Error al unirse a la vaca', 'Error joining the session'));
     }
-  }, [vacaId, comensalName]);
+  }, [vacaId, comensalName, tr]);
 
   const addProductField = useCallback(() => {
     setProducts((prev) => [...prev, { producto: '', valorEnCarta: 0, numero: 1 }]);
@@ -137,24 +249,34 @@ export default function ComensalPage() {
       setProducts([{ producto: '', valorEnCarta: 0, numero: 1 }]);
     } catch (error) {
       console.error('Error adding products:', error);
-      alert('Error al agregar productos');
+      alert(tr('Error al agregar productos', 'Error adding products'));
     } finally {
       setSubmitting(false);
     }
-  }, [vacaId, comensalId, comensalName, products]);
+  }, [vacaId, comensalId, comensalName, products, tr]);
 
   const handleDeleteProduct = useCallback(async (productId: string) => {
     if (!comensalId) {
-      alert('Error: No se encontró tu ID de comensal. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró tu ID de comensal. Por favor, recarga la página.',
+          'Error: your diner ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
     if (!vacaId) {
-      alert('Error: No se encontró el ID de la vaca. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró el ID de la vaca. Por favor, recarga la página.',
+          'Error: the session ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
-    if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+    if (!confirm(tr('¿Estás seguro de que quieres eliminar este producto?', 'Are you sure you want to delete this item?'))) {
       return;
     }
 
@@ -170,7 +292,12 @@ export default function ComensalPage() {
       if (!response.ok) {
         // If vaca not found, suggest refreshing
         if (response.status === 404 && responseData.error?.includes('Vaca not found')) {
-          alert('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.');
+          alert(
+            tr(
+              'La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.',
+              'The session seems to have expired. Please reload the page and try again.'
+            )
+          );
           // Optionally refresh the page
           window.location.reload();
           return;
@@ -182,33 +309,38 @@ export default function ComensalPage() {
       await fetchVaca();
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert(error instanceof Error ? error.message : 'Error al eliminar el producto');
+      alert(error instanceof Error ? error.message : tr('Error al eliminar el producto', 'Error deleting the item'));
     }
-  }, [vacaId, comensalId, fetchVaca]);
+  }, [vacaId, comensalId, fetchVaca, tr]);
 
   const handleSubmitPayment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!comensalId) {
-      alert('Error: No se encontró tu ID de comensal. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró tu ID de comensal. Por favor, recarga la página.',
+          'Error: your diner ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
     if (!consignadorName.trim()) {
-      alert('Por favor ingresa el nombre de quién consigna');
+      alert(tr('Por favor ingresa el nombre de quién consigna', 'Please enter the payer name'));
       return;
     }
     
     // Improved validation: trim and parse the amount
     const trimmedAmount = paymentAmount.trim();
     if (!trimmedAmount) {
-      alert('Por favor ingresa el valor pagado');
+      alert(tr('Por favor ingresa el valor pagado', 'Please enter the paid amount'));
       return;
     }
     
     const amountValue = parseFloat(trimmedAmount);
     if (isNaN(amountValue) || amountValue <= 0 || !isFinite(amountValue)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid amount greater than 0'));
       return;
     }
 
@@ -236,73 +368,46 @@ export default function ComensalPage() {
       setHasPaid(true);
       
       // Trigger confetti celebration when payment is successfully registered
-      if (!confettiTriggeredRef.current) {
-        confettiTriggeredRef.current = true;
-        
-        // Launch confetti animation
-        const duration = 3000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-        function randomInRange(min: number, max: number) {
-          return Math.random() * (max - min) + min;
-        }
-
-        const interval: NodeJS.Timeout = setInterval(function() {
-          const timeLeft = animationEnd - Date.now();
-
-          if (timeLeft <= 0) {
-            return clearInterval(interval);
-          }
-
-          const particleCount = 50 * (timeLeft / duration);
-          
-          // Launch from left
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-          });
-          
-          // Launch from right
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-          });
-        }, 250);
-      }
+      launchConfetti();
       
       fetchVaca();
       fetchPayments();
     } catch (error) {
       console.error('Error submitting payment:', error);
-      alert(error instanceof Error ? error.message : 'Error al registrar el pago');
+      alert(error instanceof Error ? error.message : tr('Error al registrar el pago', 'Error registering payment'));
     } finally {
       setSubmittingPayment(false);
     }
-  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments]);
+  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments, launchConfetti, tr]);
 
   useEffect(() => {
     // Check if already joined
     const savedComensalId = localStorage.getItem(`comensal_${vacaId}`);
+    const savedComensalName = localStorage.getItem(`comensalName_${vacaId}`);
     if (savedComensalId) {
       setComensalId(savedComensalId);
       setIsJoined(true);
     }
+    if (savedComensalName && !comensalName) {
+      setComensalName(savedComensalName);
+    }
     fetchVaca();
-  }, [vacaId, fetchVaca]);
+  }, [vacaId, fetchVaca, comensalName]);
 
   useEffect(() => {
     if (!comensalId) return;
+
+    // If we don't have the name (e.g. old sessions), fetch it once
+    fetchComensalInfo();
     
     // Poll for updates every 2 seconds
     const interval = setInterval(() => {
       fetchVaca();
       fetchPayments();
+      fetchComensalInfo();
     }, 2000);
     return () => clearInterval(interval);
-  }, [comensalId, fetchVaca, fetchPayments]);
+  }, [comensalId, fetchComensalInfo, fetchVaca, fetchPayments]);
 
   const myProducts = useMemo(
     () => vaca?.products.filter((p) => p.comensalId === comensalId) ?? [],
@@ -314,13 +419,16 @@ export default function ComensalPage() {
     [myProducts]
   );
   
-  const myTip = useMemo(() => mySubtotal * 0.1, [mySubtotal]);
+  const tipPercent = useMemo(() => vaca?.tipPercent ?? 10, [vaca?.tipPercent]);
+  const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
+
+  const myTip = useMemo(() => mySubtotal * tipRate, [mySubtotal, tipRate]);
   const myTotal = useMemo(() => mySubtotal + myTip, [mySubtotal, myTip]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-gray-600">Cargando...</div>
+        <div className="text-gray-600">{tr('Cargando...', 'Loading...')}</div>
       </div>
     );
   }
@@ -328,7 +436,7 @@ export default function ComensalPage() {
   if (!vaca) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-red-600">Vaca no encontrada</div>
+        <div className="text-red-600">{tr('Vaca no encontrada', 'Session not found')}</div>
       </div>
     );
   }
@@ -348,7 +456,7 @@ export default function ComensalPage() {
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-            Unirse a la Vaca
+            {tr('Unirse a la Vaca', 'Join the session')}
           </h1>
           <p className="text-gray-600 text-center mb-6">
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
@@ -357,7 +465,7 @@ export default function ComensalPage() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label htmlFor="comensalName" className="block text-sm font-medium text-gray-700 mb-2">
-                Tu Nombre
+                {tr('Tu Nombre', 'Your name')}
               </label>
               <input
                 id="comensalName"
@@ -368,7 +476,7 @@ export default function ComensalPage() {
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Ej. Juan Pérez
+                {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
               </p>
             </div>
             
@@ -377,7 +485,7 @@ export default function ComensalPage() {
               className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
               aria-label="Unirse a la vaca"
             >
-              Unirse
+              {tr('Unirse', 'Join')}
             </button>
           </form>
         </div>
@@ -402,14 +510,19 @@ export default function ComensalPage() {
           <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
           </h1>
-          <p className="text-gray-600 text-sm">¡A comer se dijo, {comensalName}!</p>
+          <p className="text-gray-600 text-sm text-center">
+            {tr('¡A comer se dijo,', "Let's eat,")} {comensalName}!
+          </p>
           <div className="mt-4 flex justify-center">
             <a
               href={tutorialUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-              aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
+              aria-label={tr(
+                'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
+                'Watch video tutorial on YouTube (opens in a new tab)'
+              )}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -431,7 +544,7 @@ export default function ComensalPage() {
                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Ver video tutorial
+              {tr('Ver video tutorial', 'Watch tutorial')}
             </a>
           </div>
         </div>
@@ -439,14 +552,14 @@ export default function ComensalPage() {
         {/* Add Products Form */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Agregar Productos
+            {tr('Agregar Productos', 'Add items')}
           </h2>
           {(hasPaid || vaca?.restaurantBillTotal) && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
                 {hasPaid 
-                  ? 'Ya has realizado tu pago. No puedes agregar más productos.'
-                  : 'El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.'}
+                  ? tr('Ya has realizado tu pago. No puedes agregar más productos.', "You've already paid. You can't add more items.")
+                  : tr('El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.', 'The restaurant bill total has been set. No more items can be added.')}
               </p>
             </div>
           )}
@@ -454,7 +567,9 @@ export default function ComensalPage() {
             {products.map((product, index) => (
               <div key={index} className="grid grid-cols-12 gap-2 items-start">
                 <div className="col-span-5">
-                  <label className="block text-xs text-gray-600 mb-1">Producto</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Producto', 'Item')}
+                  </label>
                   <input
                     type="text"
                     value={product.producto}
@@ -463,23 +578,34 @@ export default function ComensalPage() {
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Ej. Pollo a la plancha</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tr('Ej. Pollo a la plancha', 'e.g. Grilled chicken')}
+                  </p>
                 </div>
                 <div className="col-span-3">
-                  <label className="block text-xs text-gray-600 mb-1">Valor</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Valor', 'Price')}
+                  </label>
                   <input
                     type="number"
                     value={product.valorEnCarta || ''}
                     onChange={(e) => updateProduct(index, 'valorEnCarta', Number(e.target.value))}
                     min="0"
+                    step={isEn ? '0.01' : '1'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Sin puntos ni '$'</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {isEn
+                      ? tr('', 'You may use decimals (e.g., 10.50)')
+                      : tr("Sin puntos ni '$'", '')}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Cant.</label>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    {tr('Cant.', 'Qty.')}
+                  </label>
                   <input
                     type="number"
                     value={product.numero}
@@ -489,10 +615,14 @@ export default function ComensalPage() {
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-0.5">Cantidad</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {tr('Cantidad', 'Quantity')}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1 opacity-0">Eliminar</label>
+                  <label className="block text-xs text-gray-600 mb-1 opacity-0">
+                    {tr('Eliminar', 'Remove')}
+                  </label>
                   {products.length > 1 && (
                     <button
                       type="button"
@@ -513,17 +643,17 @@ export default function ComensalPage() {
                 onClick={addProductField}
                 disabled={hasPaid || !!vaca?.restaurantBillTotal}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Agregar otro producto"
+                aria-label={tr('Agregar otro producto', 'Add another item')}
               >
-                + Agregar Otro
+                {tr('+ Agregar Otro', '+ Add another')}
               </button>
               <button
                 type="submit"
                 disabled={submitting || hasPaid || !!vaca?.restaurantBillTotal}
                 className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Agregar productos"
+                aria-label={tr('Agregar productos', 'Add items')}
               >
-                {submitting ? 'Agregando...' : 'Agregar Productos'}
+                {submitting ? tr('Agregando...', 'Adding...') : tr('Agregar Productos', 'Add items')}
               </button>
             </div>
           </form>
@@ -543,11 +673,13 @@ export default function ComensalPage() {
                 >
                   <div className="flex-1">
                     <p className="font-medium text-gray-800">{product.producto}</p>
-                    <p className="text-sm text-gray-600">Cantidad: {product.numero}</p>
+                    <p className="text-sm text-gray-600">
+                      {tr('Cantidad', 'Quantity')}: {product.numero}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-gray-800">
-                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                      {formatMoney(product.valorEnCarta * product.numero)}
                     </p>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
@@ -560,9 +692,9 @@ export default function ComensalPage() {
                             ? "No puedes eliminar productos después de establecer el valor total de la cuenta"
                             : product.addedByVaquero
                               ? "No puedes eliminar productos agregados por el vaquero"
-                              : "Eliminar producto"
+                              : tr('Eliminar producto', 'Delete item')
                       }
-                      aria-label={`Eliminar producto ${product.producto}`}
+                      aria-label={tr('Eliminar producto', 'Delete item') + ` ${product.producto}`}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -584,16 +716,18 @@ export default function ComensalPage() {
               ))}
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal:</span>
-                  <span>${Math.round(mySubtotal).toLocaleString('es-CO')}</span>
+                  <span>{tr('Subtotal', 'Subtotal')}:</span>
+                  <span>{formatMoney(mySubtotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Propina (10%):</span>
-                  <span>${Math.round(myTip).toLocaleString('es-CO')}</span>
+                  <span>
+                    {tr('Propina', 'Tip')} ({tipPercent}%):
+                  </span>
+                  <span>{formatMoney(myTip)}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
-                  <span>Mi Total:</span>
-                  <span>${Math.round(myTotal).toLocaleString('es-CO')}</span>
+                  <span>{tr('Mi Total', 'My total')}:</span>
+                  <span>{formatMoney(myTotal)}</span>
                 </div>
               </div>
             </div>
@@ -641,28 +775,28 @@ export default function ComensalPage() {
         {(vaca.paymentQRCode || vaca.brebKey) && myTotal > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Registrar Pago
+              {tr('Registrar Pago', 'Register payment')}
             </h2>
             {hasPaid ? (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800 font-medium">
-                  ✓ Ya has registrado tu pago
+                  {tr('✓ Ya has registrado tu pago', '✓ Your payment is registered')}
                 </p>
               </div>
             ) : (
               <>
                 <p className="text-sm text-gray-600 mb-4">
-                  Indica que ya realizaste el pago:
+                  {tr('Indica que ya realizaste el pago:', 'Confirm that you have paid:')}
                 </p>
                 <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
                   <p className="text-lg font-bold text-indigo-700 text-center">
-                    Tu total a pagar: ${Math.round(myTotal).toLocaleString('es-CO')}
+                    {tr('Tu total a pagar', 'Your total to pay')} {comensalName || tr('Comensal', 'Diner')}: {formatMoney(myTotal)}
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
               <div>
                 <label htmlFor="consignadorName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre de quién consigna
+                  {tr('Nombre de quién consigna', 'Payer name')}
                 </label>
                 <input
                   id="consignadorName"
@@ -674,12 +808,12 @@ export default function ComensalPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Ej. Juan Pérez
+                  {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
                 </p>
               </div>
               <div>
                 <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Valor pagado
+                  {tr('Valor pagado', 'Amount paid')}
                 </label>
                 <input
                   id="paymentAmount"
@@ -687,13 +821,16 @@ export default function ComensalPage() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   min="0"
-                  step="1"
+                  step={isEn ? '0.01' : '1'}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={hasPaid}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Ingresa el valor en número sin puntos, ni signo '$'
+                  {tr(
+                    "Ingresa el valor en número sin puntos, ni signo '$'",
+                    'Enter the amount as a number'
+                  )}
                 </p>
               </div>
               <button
@@ -702,7 +839,7 @@ export default function ComensalPage() {
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Registrar pago"
               >
-                {submittingPayment ? 'Enviando...' : 'Enviar'}
+                {submittingPayment ? tr('Enviando...', 'Sending...') : tr('Enviar', 'Send')}
               </button>
             </form>
               </>
@@ -713,7 +850,9 @@ export default function ComensalPage() {
         {/* Banners manuales de restaurantes */}
         {restaurantAds.length > 0 ? (
           <div className="mt-6">
-            <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
+            <p className="text-xs text-gray-500 text-center mb-2">
+              {tr('Restaurantes recomendados', 'Recommended restaurants')}
+            </p>
             {restaurantAds.map((ad) => (
               <RestaurantBanner key={ad.id} ad={ad} variant="compact" />
             ))}

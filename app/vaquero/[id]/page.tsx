@@ -9,12 +9,33 @@ import autoTable from 'jspdf-autotable';
 import confetti from 'canvas-confetti';
 import { v4 as uuidv4 } from 'uuid';
 import { Vaca, Product, Comensal, Payment } from '@/types';
+import { getClientLang, type Lang } from '@/lib/langClient';
 
 export default function VaqueroDashboard() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
+  const [lang, setLang] = useState<Lang>('es');
+  useEffect(() => {
+    setLang(getClientLang());
+  }, []);
+  const isEn = lang === 'en';
+  const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
+  const moneyFormatter = useMemo(() => {
+    const locale = isEn ? 'en-GB' : 'es-CO';
+    const fractionDigits = isEn ? 2 : 0;
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+  }, [isEn]);
+  const formatMoney = useCallback(
+    (value: number) => `$${moneyFormatter.format(Number.isFinite(value) ? value : 0)}`,
+    [moneyFormatter]
+  );
+  // Advanced features are off by default; user can enable them from the UI.
+  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [total, setTotal] = useState(0);
   const [paymentQR, setPaymentQR] = useState<string>('');
@@ -22,6 +43,7 @@ export default function VaqueroDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const brebKeyInputRef = useRef<HTMLInputElement>(null);
   const restaurantBillTotalInputRef = useRef<HTMLInputElement>(null);
+  const tipPercentInputRef = useRef<HTMLInputElement>(null);
   const [comensales, setComensales] = useState<Comensal[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalCollected, setTotalCollected] = useState(0);
@@ -31,7 +53,7 @@ export default function VaqueroDashboard() {
   const [productValue, setProductValue] = useState('');
   const [productQuantity, setProductQuantity] = useState(1);
   const [distributionType, setDistributionType] = useState<'single' | 'all'>('single');
-  const [selectedComensalId, setSelectedComensalId] = useState('');
+  const [selectedComensalIds, setSelectedComensalIds] = useState<string[]>([]);
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [brebKey, setBrebKey] = useState('');
   const [brebKeyInput, setBrebKeyInput] = useState('');
@@ -39,8 +61,36 @@ export default function VaqueroDashboard() {
   const [editingBrebKey, setEditingBrebKey] = useState(false);
   const [restaurantBillTotal, setRestaurantBillTotal] = useState('');
   const [submittingRestaurantBill, setSubmittingRestaurantBill] = useState(false);
+  const [tipPercentInput, setTipPercentInput] = useState('10');
+  const [submittingTipPercent, setSubmittingTipPercent] = useState(false);
   const confettiTriggeredRef = useRef(false);
   const [vaqueroId, setVaqueroId] = useState<string>('');
+  const [markingPaidIds, setMarkingPaidIds] = useState<Record<string, boolean>>({});
+  const [mergeTargetByComensalId, setMergeTargetByComensalId] = useState<Record<string, string>>({});
+  const [mergingIds, setMergingIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(`advanced_${vacaId}`);
+      if (stored === '1') setAdvancedFeaturesEnabled(true);
+      if (stored === '0') setAdvancedFeaturesEnabled(false);
+    } catch {
+      // ignore
+    }
+  }, [vacaId]);
+
+  const toggleAdvancedFeatures = useCallback(() => {
+    setAdvancedFeaturesEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(`advanced_${vacaId}`, next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, [vacaId]);
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -75,6 +125,15 @@ export default function VaqueroDashboard() {
           } else {
             setRestaurantBillTotal('');
           }
+        }
+
+        // Only update tip percent input if not currently focused
+        if (!tipPercentInputRef.current || document.activeElement !== tipPercentInputRef.current) {
+          const currentTipPercent =
+            data.vaca.tipPercent === undefined || data.vaca.tipPercent === null
+              ? 10
+              : data.vaca.tipPercent;
+          setTipPercentInput(String(currentTipPercent));
         }
       }
     } catch (error) {
@@ -216,7 +275,7 @@ export default function VaqueroDashboard() {
         }
       } catch (error) {
         console.error('Error uploading QR:', error);
-        alert('Error al subir el QR');
+        alert(tr('Error al subir el QR', 'Error uploading the QR'));
       }
     };
     reader.readAsDataURL(file);
@@ -234,7 +293,7 @@ export default function VaqueroDashboard() {
     e.preventDefault();
     
     if (!brebKeyInput.trim()) {
-      alert('Por favor ingresa la llave de Bre-B');
+      alert(tr('Por favor ingresa la llave de Bre-B', 'Please enter the Bre-B key'));
       return;
     }
 
@@ -254,7 +313,7 @@ export default function VaqueroDashboard() {
       setEditingBrebKey(false);
     } catch (error) {
       console.error('Error saving Bre-B key:', error);
-      alert('Error al guardar la llave de Bre-B');
+      alert(tr('Error al guardar la llave de Bre-B', 'Error saving the Bre-B key'));
     } finally {
       setSubmittingBrebKey(false);
     }
@@ -265,24 +324,27 @@ export default function VaqueroDashboard() {
     setBrebKeyInput(brebKey);
   }, [brebKey]);
 
+  const paidComensalIds = useMemo(
+    () => new Set(payments.map((p) => p.comensalId)),
+    [payments]
+  );
+  const unpaidComensalesCount = useMemo(
+    () => comensales.filter((c) => !paidComensalIds.has(c.id)).length,
+    [comensales, paidComensalIds]
+  );
+
   const handleRestaurantBillSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check if any comensal has paid
-    if (payments.length > 0) {
-      alert('No se puede modificar el valor de la cuenta del restaurante después de que algún comensal haya pagado');
-      return;
-    }
 
     const trimmedValue = restaurantBillTotal.trim();
     if (!trimmedValue) {
-      alert('Por favor ingresa el valor total de la cuenta del restaurante');
+      alert(tr('Por favor ingresa el valor total de la cuenta del restaurante', 'Please enter the restaurant bill total'));
       return;
     }
     
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
       return;
     }
 
@@ -293,7 +355,7 @@ export default function VaqueroDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurantBillTotal: value,
-          distributeDifference: comensales.length > 0, // Solo distribuir si hay comensales
+          distributeDifference: unpaidComensalesCount > 0, // Distribuir solo entre quienes no han pagado
         }),
       });
 
@@ -303,7 +365,7 @@ export default function VaqueroDashboard() {
       }
 
       const data = await response.json();
-      alert('Valor de cuenta del restaurante guardado y diferencia distribuida exitosamente');
+      alert(tr('Valor de cuenta del restaurante guardado y diferencia distribuida exitosamente', 'Restaurant bill saved and difference distributed successfully'));
       // Clear the input field
       setRestaurantBillTotal('');
       await fetchVaca();
@@ -313,49 +375,214 @@ export default function VaqueroDashboard() {
     } finally {
       setSubmittingRestaurantBill(false);
     }
-  }, [vacaId, restaurantBillTotal, payments, comensales, fetchVaca]);
+  }, [vacaId, restaurantBillTotal, unpaidComensalesCount, fetchVaca]);
+
+  const handleMarkTransferred = useCallback(
+    async (comensal: Comensal, amount: number) => {
+      if (!vacaId) return;
+
+      const amountToSend = isEn ? amount : Math.round(amount);
+      if (!isFinite(amountToSend) || amountToSend <= 0) {
+        alert(tr('El total del comensal debe ser mayor a 0 para registrar el pago', 'The diner total must be greater than 0 to register payment'));
+        return;
+      }
+
+      if (
+        !confirm(
+          tr(
+            `¿Marcar como pagado a "${comensal.name}" por ${formatMoney(amountToSend)}?`,
+            `Mark "${comensal.name}" as paid for ${formatMoney(amountToSend)}?`
+          )
+        )
+      ) {
+        return;
+      }
+
+      setMarkingPaidIds((prev) => ({ ...prev, [comensal.id]: true }));
+      try {
+        const response = await fetch(`/api/vaca/${vacaId}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            comensalId: comensal.id,
+            consignadorName: comensal.name,
+            amount: amountToSend,
+          }),
+        });
+
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(responseData.error || 'No se pudo registrar el pago');
+        }
+
+        await fetchPayments();
+        await fetchVaca();
+      } catch (error) {
+        console.error('Error marking transferred:', error);
+        alert(error instanceof Error ? error.message : 'Error al registrar el pago');
+      } finally {
+        setMarkingPaidIds((prev) => ({ ...prev, [comensal.id]: false }));
+      }
+    },
+    [vacaId, fetchPayments, fetchVaca]
+  );
+
+  const handleMergeComensales = useCallback(
+    async (fromComensalId: string) => {
+      const toComensalId = mergeTargetByComensalId[fromComensalId];
+      if (!toComensalId) {
+        alert(tr('Selecciona con quién fusionar la cuenta', 'Select who to merge this account into'));
+        return;
+      }
+
+      const from = comensales.find((c) => c.id === fromComensalId);
+      const to = comensales.find((c) => c.id === toComensalId);
+      if (!from || !to) {
+        alert(tr('Comensal no encontrado', 'Diner not found'));
+        return;
+      }
+
+      if (!confirm(`¿Fusionar la cuenta de "${from.name}" con "${to.name}"?\n\nLos productos de "${from.name}" pasarán a "${to.name}" y la sesión del comensal fusionado se reiniciará.`)) {
+        return;
+      }
+
+      setMergingIds((prev) => ({ ...prev, [fromComensalId]: true }));
+      try {
+        const response = await fetch(`/api/vaca/${vacaId}/merge-comensal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fromComensalId, toComensalId }),
+        });
+
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(responseData.error || 'No se pudo fusionar la cuenta');
+        }
+
+        // Clear selection and refresh
+        setMergeTargetByComensalId((prev) => ({ ...prev, [fromComensalId]: '' }));
+        await fetchVaca();
+        await fetchComensales();
+        await fetchPayments();
+      } catch (error) {
+        console.error('Error merging comensales:', error);
+        alert(error instanceof Error ? error.message : 'Error al fusionar la cuenta');
+      } finally {
+        setMergingIds((prev) => ({ ...prev, [fromComensalId]: false }));
+      }
+    },
+    [vacaId, mergeTargetByComensalId, comensales, fetchVaca, fetchComensales, fetchPayments]
+  );
+
+  const handleTipPercentSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Check if any comensal has paid
+    if (payments.length > 0) {
+      alert(tr('No se puede modificar el porcentaje de propina después de que algún comensal haya pagado', 'You cannot change the tip percentage after any diner has paid'));
+      return;
+    }
+
+    const trimmed = tipPercentInput.trim();
+    if (trimmed === '') {
+      alert(tr('Por favor ingresa un porcentaje de propina', 'Please enter a tip percentage'));
+      return;
+    }
+
+    const value = Number(trimmed);
+    if (!isFinite(value) || value < 0 || value > 100) {
+      alert(tr('Por favor ingresa un porcentaje válido entre 0 y 100', 'Please enter a valid percentage between 0 and 100'));
+      return;
+    }
+
+    setSubmittingTipPercent(true);
+    try {
+      const response = await fetch(`/api/vaca/${vacaId}/tip-percent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipPercent: value }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save tip percent');
+      }
+
+      await fetchVaca();
+    } catch (error) {
+      console.error('Error saving tip percent:', error);
+      alert(error instanceof Error ? error.message : 'Error al guardar el porcentaje de propina');
+    } finally {
+      setSubmittingTipPercent(false);
+    }
+  }, [vacaId, tipPercentInput, payments, fetchVaca]);
+
+  const toggleSelectedComensalId = useCallback((id: string) => {
+    setSelectedComensalIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
 
   const subtotal = useMemo(
     () => vaca?.products.reduce((sum, p) => sum + p.valorEnCarta * p.numero, 0) ?? 0,
     [vaca?.products]
   );
-  const tip = useMemo(() => subtotal * 0.1, [subtotal]);
+  const tipPercent = useMemo(() => vaca?.tipPercent ?? 10, [vaca?.tipPercent]);
+  const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
+  const tipFactor = useMemo(() => 1 + tipRate, [tipRate]);
+  const tip = useMemo(() => subtotal * tipRate, [subtotal, tipRate]);
+
+  const round1 = useCallback((n: number) => Math.round(n * 10) / 10, []);
+  const totalRounded = useMemo(() => round1(total), [total, round1]);
+  const totalCollectedRounded = useMemo(
+    () => round1(totalCollected),
+    [totalCollected, round1]
+  );
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!productName.trim()) {
-      alert('Por favor ingresa el nombre del producto');
+      alert(tr('Por favor ingresa el nombre del producto', 'Please enter the item name'));
       return;
     }
     
     const trimmedValue = productValue.trim();
     if (!trimmedValue) {
-      alert('Por favor ingresa el valor del producto');
+      alert(tr('Por favor ingresa el valor del producto', 'Please enter the item price'));
       return;
     }
     
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
       return;
     }
     
-    if (distributionType === 'single' && !selectedComensalId) {
-      alert('Por favor selecciona un comensal');
+    if (distributionType === 'single' && selectedComensalIds.length === 0) {
+      alert(tr('Por favor selecciona uno o más comensales', 'Please select one or more diners'));
       return;
     }
     
     if (distributionType === 'all' && comensales.length === 0) {
-      alert('No hay comensales registrados para distribuir el producto');
+      alert(tr('No hay comensales registrados para distribuir el producto', 'There are no diners to distribute this item'));
       return;
     }
 
     setSubmittingProduct(true);
     try {
-      if (distributionType === 'single') {
-        // Add product to single comensal
-        const selectedComensal = comensales.find(c => c.id === selectedComensalId);
+      const targets =
+        distributionType === 'all'
+          ? comensales
+          : comensales.filter((c) => selectedComensalIds.includes(c.id));
+
+      if (targets.length === 0) {
+        throw new Error('No hay comensales seleccionados');
+      }
+
+      if (targets.length === 1) {
+        // Add product to a single comensal (no group)
+        const only = targets[0];
         const response = await fetch(`/api/vaca/${vacaId}/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -363,8 +590,8 @@ export default function VaqueroDashboard() {
             producto: productName.trim(),
             valorEnCarta: value,
             numero: productQuantity,
-            comensalId: selectedComensalId,
-            comensalName: selectedComensal?.name || 'Vaquero',
+            comensalId: only.id,
+            comensalName: only.name || 'Comensal',
             addedByVaquero: true,
           }),
         });
@@ -373,9 +600,10 @@ export default function VaqueroDashboard() {
           throw new Error('Failed to add product');
         }
       } else {
-        // Distribute product among all comensales
-        const valuePerComensal = value / comensales.length;
-        const promises = comensales.map((comensal) =>
+        // Distribute product among selected comensales
+        const valuePerComensal = value / targets.length;
+        const distributionGroupId = uuidv4();
+        const promises = targets.map((comensal) =>
           fetch(`/api/vaca/${vacaId}/products`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -386,12 +614,13 @@ export default function VaqueroDashboard() {
               comensalId: comensal.id,
               comensalName: comensal.name,
               addedByVaquero: true,
+              distributionGroupId,
             }),
           })
         );
 
         const responses = await Promise.all(promises);
-        const failed = responses.some(r => !r.ok);
+        const failed = responses.some((r) => !r.ok);
         if (failed) {
           throw new Error('Failed to add product to some comensales');
         }
@@ -401,21 +630,21 @@ export default function VaqueroDashboard() {
       setProductName('');
       setProductValue('');
       setProductQuantity(1);
-      setSelectedComensalId('');
+      setSelectedComensalIds([]);
       
       // Refresh data
       await fetchVaca();
     } catch (error) {
       console.error('Error adding product:', error);
-      alert('Error al agregar el producto');
+      alert(tr('Error al agregar el producto', 'Error adding the item'));
     } finally {
       setSubmittingProduct(false);
     }
-  }, [vacaId, productName, productValue, productQuantity, distributionType, selectedComensalId, comensales, fetchVaca]);
+  }, [vacaId, productName, productValue, productQuantity, distributionType, selectedComensalIds, comensales, fetchVaca]);
 
   const handleDeleteProduct = useCallback(async (productId: string, comensalId: string, distributionGroupId?: string) => {
     if (!vacaId) {
-      alert('Error: No se encontró el ID de la vaca. Por favor, recarga la página.');
+      alert(tr('Error: No se encontró el ID de la vaca. Por favor, recarga la página.', 'Error: session ID not found. Please reload the page.'));
       return;
     }
     
@@ -458,7 +687,7 @@ export default function VaqueroDashboard() {
 
         if (!response.ok) {
           if (response.status === 404 && responseData.error?.includes('Vaca not found')) {
-            alert('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.');
+            alert(tr('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.', 'The session seems to have expired. Please reload the page and try again.'));
             window.location.reload();
             return;
           }
@@ -506,7 +735,7 @@ export default function VaqueroDashboard() {
     // Información de la vaca
     doc.setFontSize(12);
     doc.text(`Nombre: ${vaca.name}`, 14, 30);
-    doc.text(`Fecha: ${new Date(vaca.createdAt).toLocaleString('es-CO')}`, 14, 37);
+    doc.text(`Fecha: ${new Date(vaca.createdAt).toLocaleString(isEn ? 'en-GB' : 'es-CO')}`, 14, 37);
     
     let yPosition = 47;
 
@@ -520,8 +749,8 @@ export default function VaqueroDashboard() {
         p.producto,
         p.comensalName || 'N/A',
         p.numero.toString(),
-        `$${Math.round(p.valorEnCarta).toLocaleString('es-CO')}`,
-        `$${Math.round(p.valorEnCarta * p.numero).toLocaleString('es-CO')}`,
+        `${formatMoney(p.valorEnCarta)}`,
+        `${formatMoney(p.valorEnCarta * p.numero)}`,
       ]);
 
       autoTable(doc, {
@@ -537,13 +766,13 @@ export default function VaqueroDashboard() {
 
     // Totales
     doc.setFontSize(12);
-    doc.text(`Subtotal: $${Math.round(subtotal).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Subtotal: ${formatMoney(subtotal)}`, 14, yPosition);
     yPosition += 7;
-    doc.text(`Propina (10%): $${Math.round(tip).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Propina (${tipPercent}%): ${formatMoney(tip)}`, 14, yPosition);
     yPosition += 7;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total: $${Math.round(total).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total: ${formatMoney(total)}`, 14, yPosition);
     doc.setFont('helvetica', 'normal');
     yPosition += 12;
 
@@ -559,13 +788,13 @@ export default function VaqueroDashboard() {
           (sum, p) => sum + p.valorEnCarta * p.numero,
           0
         );
-        const comensalTip = comensalSubtotal * 0.1;
+        const comensalTip = comensalSubtotal * tipRate;
         const comensalTotal = comensalSubtotal + comensalTip;
         const hasPaid = payments.some((p) => p.comensalId === comensal.id);
         
         return [
           comensal.name,
-          `$${Math.round(comensalTotal).toLocaleString('es-CO')}`,
+          `${formatMoney(comensalTotal)}`,
           hasPaid ? 'Pagado' : 'Pendiente',
         ];
       });
@@ -602,8 +831,8 @@ export default function VaqueroDashboard() {
         return [
           comensal?.name || 'N/A',
           p.consignadorName,
-          `$${Math.round(p.amount).toLocaleString('es-CO')}`,
-          new Date(p.paidAt).toLocaleString('es-CO'),
+          `${formatMoney(p.amount)}`,
+          new Date(p.paidAt).toLocaleString(isEn ? 'en-GB' : 'es-CO'),
         ];
       });
 
@@ -620,9 +849,9 @@ export default function VaqueroDashboard() {
 
     // Resumen de pagos
     doc.setFontSize(12);
-    doc.text(`Total Recaudado: $${Math.round(totalCollected).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total Recaudado: ${formatMoney(totalCollected)}`, 14, yPosition);
     yPosition += 7;
-    doc.text(`Total Esperado: $${Math.round(total).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total Esperado: ${formatMoney(total)}`, 14, yPosition);
     yPosition += 7;
     
     if (totalCollected >= total) {
@@ -631,7 +860,7 @@ export default function VaqueroDashboard() {
     } else {
       doc.setTextColor(220, 38, 38); // red-600
       const pending = total - totalCollected;
-      doc.text(`Pendiente: $${Math.round(pending).toLocaleString('es-CO')}`, 14, yPosition);
+      doc.text(`Pendiente: ${formatMoney(pending)}`, 14, yPosition);
     }
     doc.setTextColor(0, 0, 0); // Reset to black
 
@@ -641,7 +870,7 @@ export default function VaqueroDashboard() {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(
-        `Página ${i} de ${pageCount} - Generado el ${new Date().toLocaleString('es-CO')}`,
+        `Página ${i} de ${pageCount} - Generado el ${new Date().toLocaleString(isEn ? 'en-GB' : 'es-CO')}`,
         14,
         doc.internal.pageSize.height - 10
       );
@@ -649,12 +878,12 @@ export default function VaqueroDashboard() {
 
     // Guardar PDF
     doc.save(`Informe_Vaca_${vaca.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-  }, [vaca, subtotal, tip, total, comensales, payments, totalCollected]);
+  }, [vaca, subtotal, tip, tipPercent, tipRate, total, comensales, payments, totalCollected]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-gray-600">Cargando...</div>
+        <div className="text-gray-600">{tr('Cargando...', 'Loading...')}</div>
       </div>
     );
   }
@@ -662,7 +891,7 @@ export default function VaqueroDashboard() {
   if (!vaca) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-red-600">Vaca no encontrada</div>
+        <div className="text-red-600">{tr('Vaca no encontrada', 'Session not found')}</div>
       </div>
     );
   }
@@ -683,45 +912,59 @@ export default function VaqueroDashboard() {
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">{vaca.name}</h1>
           <p className="text-gray-600 text-sm text-center">
-            Creada el {new Date(vaca.createdAt).toLocaleString('es-CO')}
+            {tr('Creada el', 'Created on')} {new Date(vaca.createdAt).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
           </p>
           <div className="mt-4 flex justify-center">
-            <a
-              href={tutorialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-              aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <div className="flex flex-col items-center gap-2">
+              <a
+                href={tutorialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
+                aria-label={tr(
+                  'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
+                  'Watch video tutorial on YouTube (opens in a new tab)'
+                )}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.26a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Ver video tutorial
-            </a>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.26a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {tr('Ver video tutorial', 'Watch tutorial')}
+              </a>
+              <button
+                type="button"
+                onClick={toggleAdvancedFeatures}
+                className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                {advancedFeaturesEnabled
+                  ? tr('Desactivar características avanzadas', 'Disable advanced features')
+                  : tr('Activar caracteristicas avanzadas', 'Enable advanced features')}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* QR Code for Comensales */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            QR para Comensales
+            {tr('QR para Comensales', 'QR for diners')}
           </h2>
           <div className="flex justify-center mb-4">
             {joinUrl && (
@@ -729,7 +972,7 @@ export default function VaqueroDashboard() {
             )}
           </div>
           <p className="text-sm text-gray-600 text-center">
-            Comparte este QR para que tus amigos se unan
+            {tr('Comparte este QR para que tus amigos se unan', 'Share this QR so your friends can join')}
           </p>
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
@@ -737,21 +980,21 @@ export default function VaqueroDashboard() {
               <button
                 onClick={copyToClipboard}
                 className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 whitespace-nowrap"
-                aria-label="Copiar enlace para comensales"
+                aria-label={tr('Copiar enlace para comensales', 'Copy link for diners')}
               >
                 {copied ? (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Copiado
+                    {tr('Copiado', 'Copied')}
                   </>
                 ) : (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    Copiar
+                    {tr('Copiar', 'Copy')}
                   </>
                 )}
               </button>
@@ -759,12 +1002,115 @@ export default function VaqueroDashboard() {
           </div>
         </div>
 
-        {/* Add Product Form */}
-        {comensales.length > 0 && (
+        {/* Tip percent (advanced) */}
+        {advancedFeaturesEnabled && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              {tr('Propina', 'Tip')}
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {tr(
+                'Define el porcentaje de propina que usará la app para calcular los totales. Valor por defecto: ',
+                'Set the tip percentage the app will use to calculate totals. Default: '
+              )}
+              <b>10%</b>.
+            </p>
+
+            {payments.length > 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  {tr(
+                    'No se puede modificar la propina después de que algún comensal haya pagado.',
+                    'You cannot change the tip after any diner has paid.'
+                  )}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleTipPercentSubmit} className="space-y-3">
+              <div>
+                <label htmlFor="tipPercent" className="block text-sm font-medium text-gray-700 mb-2">
+                  {tr('Porcentaje de propina', 'Tip percentage')}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    ref={tipPercentInputRef}
+                    id="tipPercent"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={tipPercentInput}
+                    onChange={(e) => setTipPercentInput(e.target.value)}
+                    disabled={payments.length > 0 || submittingTipPercent}
+                    className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-gray-700">%</span>
+                  <span className="text-sm text-gray-500">
+                    ({tr('actual', 'current')}: <b>{tipPercent}%</b>)
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={payments.length > 0 || submittingTipPercent}
+                className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submittingTipPercent
+                  ? tr('Guardando...', 'Saving...')
+                  : tr('Guardar porcentaje de propina', 'Save tip percentage')}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Products List */}
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Agregar Producto de Vaquero (colectivo)
+              {tr('Productos Agregados por Comensales', 'Items added by diners')}
             </h2>
+            {vaca.products.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                {tr('Aún no hay productos agregados', 'No items yet')}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {vaca.products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">{product.producto}</p>
+                      <p className="text-sm text-gray-600">
+                        {(product.comensalName || tr('Comensal', 'Diner'))} • {tr('Cantidad', 'Qty')}: {product.numero}
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {formatMoney(product.valorEnCarta * product.numero)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Add Product Form (advanced) */}
+        {advancedFeaturesEnabled && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              {tr('Agregar Producto de Vaquero (colectivo)', 'Add host item (shared)')}
+            </h2>
+            {comensales.length === 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Para usar esta sección, primero debe unirse al menos un comensal (usa el QR de arriba).
+                </p>
+              </div>
+            )}
             {vaca?.restaurantBillTotal && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
@@ -772,7 +1118,14 @@ export default function VaqueroDashboard() {
                 </p>
               </div>
             )}
-            <form onSubmit={handleAddProduct} className={`space-y-4 ${vaca?.restaurantBillTotal ? 'pointer-events-none opacity-50' : ''}`}>
+            <form
+              onSubmit={handleAddProduct}
+              className={`space-y-4 ${
+                vaca?.restaurantBillTotal || comensales.length === 0
+                  ? 'pointer-events-none opacity-50'
+                  : ''
+              }`}
+            >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -801,7 +1154,7 @@ export default function VaqueroDashboard() {
                     value={productValue}
                     onChange={(e) => setProductValue(e.target.value)}
                     min="0"
-                    step="1"
+                    step={isEn ? '0.01' : '1'}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!!vaca?.restaurantBillTotal}
                     required
@@ -843,12 +1196,12 @@ export default function VaqueroDashboard() {
                     checked={distributionType === 'single'}
                     onChange={(e) => {
                       setDistributionType('single');
-                      setSelectedComensalId('');
+                      setSelectedComensalIds([]);
                     }}
                     disabled={!!vaca?.restaurantBillTotal}
                     className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <span className="text-sm text-gray-700">Cargar a un comensal</span>
+                  <span className="text-sm text-gray-700">Cargar a comensales elegidos</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -858,7 +1211,7 @@ export default function VaqueroDashboard() {
                     checked={distributionType === 'all'}
                     onChange={(e) => {
                       setDistributionType('all');
-                      setSelectedComensalId('');
+                      setSelectedComensalIds([]);
                     }}
                     disabled={!!vaca?.restaurantBillTotal}
                     className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -869,26 +1222,77 @@ export default function VaqueroDashboard() {
               
               {distributionType === 'single' && comensales.length > 0 && (
                 <div>
-                  <label htmlFor="selectedComensal" className="block text-sm font-medium text-gray-700 mb-2">
-                    Seleccionar Comensal
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar comensales
                   </label>
-                  <select
-                    id="selectedComensal"
-                    value={selectedComensalId}
-                    onChange={(e) => setSelectedComensalId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!!vaca?.restaurantBillTotal}
-                    required={distributionType === 'single'}
-                  >
-                    <option value="">Selecciona un comensal</option>
-                    {comensales.map((comensal) => (
-                      <option key={comensal.id} value={comensal.id}>
-                        {comensal.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {comensales.map((comensal) => {
+                      const checked = selectedComensalIds.includes(comensal.id);
+                      return (
+                        <label
+                          key={comensal.id}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer select-none ${
+                            checked
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
+                              : 'bg-white border-gray-200 text-gray-700'
+                          } ${vaca?.restaurantBillTotal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSelectedComensalId(comensal.id)}
+                            disabled={!!vaca?.restaurantBillTotal}
+                            className="h-4 w-4"
+                          />
+                          <span>{comensal.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedComensalIds.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Marca uno o más comensales para repartir el producto entre ellos.
+                    </p>
+                  )}
                 </div>
               )}
+
+              {distributionType === 'single' &&
+                comensales.length > 0 &&
+                selectedComensalIds.length > 0 &&
+                parseFloat(productValue || '0') > 0 && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      El valor se dividirá equitativamente entre {selectedComensalIds.length}{' '}
+                      comensal{selectedComensalIds.length !== 1 ? 'es' : ''}. Cada uno pagará:
+                    </p>
+                    <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
+                      <li>
+                        Subtotal: $
+                        {(
+                          (parseFloat(productValue || '0') / selectedComensalIds.length) *
+                          productQuantity
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                      <li>
+                        Propina ({tipPercent}%): $
+                        {(
+                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                            productQuantity) *
+                          tipRate
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                      <li className="font-semibold">
+                        Total: $
+                        {(
+                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                            productQuantity) *
+                          tipFactor
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                    </ul>
+                  </div>
+                )}
               
               {distributionType === 'all' && comensales.length > 0 && parseFloat(productValue || '0') > 0 && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -898,8 +1302,8 @@ export default function VaqueroDashboard() {
                   </p>
                   <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
                     <li>Subtotal: ${((parseFloat(productValue || '0') / comensales.length) * productQuantity).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li>Propina (10%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * 0.1).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * 1.1).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                    <li>Propina ({tipPercent}%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipRate).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                    <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipFactor).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
                   </ul>
                 </div>
               )}
@@ -961,18 +1365,24 @@ export default function VaqueroDashboard() {
               </p>
               {vaca?.restaurantBillTotal && (
                 <p className="text-xs text-gray-600 mt-1 font-medium">
-                  Valor actual: ${Math.round(vaca?.restaurantBillTotal || 0).toLocaleString('es-CO')}
+                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
                 </p>
               )}
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin servicio):</strong> ${Math.round((parseFloat(restaurantBillTotal) / 1.1) - subtotal).toLocaleString('es-CO')}
+                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
                     {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / 1.1) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                      <> ({comensales.length} {tr('comensal', 'diner')}{comensales.length !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length)} {tr('cada uno', 'each')})</>
                     )}
                     <br />
-                    <span className="text-xs">El servicio (10%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">
+                      {tr(
+                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                      )}
+                    </span>
                   </p>
                 </div>
               )}
@@ -1005,8 +1415,8 @@ export default function VaqueroDashboard() {
           </div>
         )}
 
-        {/* My Products - Products Added by Vaquero */}
-        {comensales.length > 0 && (() => {
+        {/* My Products - Products Added by Vaquero (advanced) */}
+        {advancedFeaturesEnabled && (() => {
           const allGroupedItems = [
             ...groupedVaqueroProducts.groups.map(group => ({ type: 'group' as const, products: group })),
             ...groupedVaqueroProducts.singleProducts.map(product => ({ type: 'single' as const, product }))
@@ -1015,8 +1425,13 @@ export default function VaqueroDashboard() {
           return (
             <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-               Productos Agregados por el Vaquero (colectivos)
+               {tr('Productos Agregados por el Vaquero (colectivos)', 'Host-added items (shared)')}
               </h2>
+              {comensales.length === 0 && (
+                <p className="text-gray-500 text-center py-4">
+                  Aquí aparecerán los productos colectivos del vaquero (después de que se unan comensales).
+                </p>
+              )}
               {allGroupedItems.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">
                   Aún no has agregado productos
@@ -1043,7 +1458,7 @@ export default function VaqueroDashboard() {
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-semibold text-gray-800">
-                              ${Math.round(totalValue).toLocaleString('es-CO')}
+                              {formatMoney(totalValue)}
                             </p>
                             <button
                               onClick={() => handleDeleteProduct(firstProduct.id, firstProduct.comensalId, firstProduct.distributionGroupId)}
@@ -1085,7 +1500,7 @@ export default function VaqueroDashboard() {
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-semibold text-gray-800">
-                              ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                              {formatMoney(product.valorEnCarta * product.numero)}
                             </p>
                             <button
                               onClick={() => handleDeleteProduct(product.id, product.comensalId)}
@@ -1120,79 +1535,52 @@ export default function VaqueroDashboard() {
           );
         })()}
 
-        {/* Products List */}
-        {comensales.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Productos Agregados por Comensales
-            </h2>
-            {vaca.products.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
-                Aún no hay productos agregados
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {vaca.products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{product.producto}</p>
-                      <p className="text-sm text-gray-600">
-                        {product.comensalName || 'Comensal'} • Cantidad: {product.numero}
-                      </p>
-                    </div>
-                    <p className="text-lg font-semibold text-gray-800">
-                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Total */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Totales en app
+              {tr('Totales en app', 'Totals in app')}
             </h2>
             <div className="space-y-2">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal:</span>
-                <span>${Math.round(subtotal).toLocaleString('es-CO')}</span>
+                <span>{tr('Subtotal', 'Subtotal')}:</span>
+                <span>{formatMoney(subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>Propina (10%):</span>
-                <span>${Math.round(tip).toLocaleString('es-CO')}</span>
+                <span>
+                  {tr('Propina', 'Tip')} ({tipPercent}%):
+                </span>
+                <span>{formatMoney(tip)}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
-                <span>Total:</span>
-                <span>${Math.round(total).toLocaleString('es-CO')}</span>
+                <span>{tr('Total', 'Total')}:</span>
+                <span>{formatMoney(total)}</span>
               </div>
             </div>
           </div>
         )}
 
         {/* Restaurant Bill Total Form - Cerrar cuenta de la vaca */}
-        {comensales.length > 0 && (
+        {(comensales.length > 0 && vaca.products.length > 0) && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Cerrar cuenta de la vaca
+              {tr('Cerrar cuenta de la vaca', 'Close the bill')}
             </h2>
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  Este formulario está deshabilitado porque algunos comensales ya han realizado pagos.
+                  {tr(
+                    'Nota: si algunos comensales ya pagaron, cualquier diferencia se distribuirá entre quienes',
+                    'Note: if some diners already paid, any difference will be distributed among those who'
+                  )}{' '}
+                  <b>{tr('aún no han transferido', "haven't paid yet")}</b>.
                 </p>
               </div>
             )}
             <form onSubmit={handleRestaurantBillSubmit} className="space-y-4">
             <div>
               <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
-                Valor total de la cuenta del restaurante
+                {tr('Valor total de la cuenta del restaurante', 'Restaurant bill total')}
               </label>
               <input
                 ref={restaurantBillTotalInputRef}
@@ -1201,55 +1589,67 @@ export default function VaqueroDashboard() {
                 value={restaurantBillTotal}
                 onChange={(e) => setRestaurantBillTotal(e.target.value)}
                 min="0"
-                step="1"
+                step={isEn ? '0.01' : '1'}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Ej: 150000"
-                disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
+                placeholder={tr('Ej: 150000', 'e.g. 150000')}
+                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.
+                {tr(
+                  'Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.',
+                  'Enter the restaurant bill total. Any difference vs the app total will be distributed evenly among diners.'
+                )}
               </p>
               {vaca?.restaurantBillTotal && (
                 <p className="text-xs text-gray-600 mt-1 font-medium">
-                  Valor actual: ${Math.round(vaca?.restaurantBillTotal || 0).toLocaleString('es-CO')}
+                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
                 </p>
               )}
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin servicio):</strong> ${Math.round((parseFloat(restaurantBillTotal) / 1.1) - subtotal).toLocaleString('es-CO')}
-                    {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / 1.1) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
+                    {unpaidComensalesCount > 0 && (
+                      <> ({unpaidComensalesCount} {tr('comensal', 'diner')}{unpaidComensalesCount !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount)} {tr('cada uno', 'each')})</>
                     )}
                     <br />
-                    <span className="text-xs">El servicio (10%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">
+                      {tr(
+                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                      )}
+                    </span>
                   </p>
                 </div>
               )}
             </div>
             <button
               type="submit"
-              disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
               className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
-                payments.length > 0 
-                  ? 'No se puede modificar después de que algún comensal haya pagado' 
-                  : vaca?.restaurantBillTotal 
-                    ? 'Ya se ha guardado y distribuido el valor de la cuenta del restaurante' 
+                vaca?.restaurantBillTotal 
+                    ? tr(
+                        'Ya se ha guardado y distribuido el valor de la cuenta del restaurante',
+                        'The restaurant bill has already been saved and distributed'
+                      )
                     : ''
               }
             >
-              {submittingRestaurantBill ? 'Guardando...' : vaca?.restaurantBillTotal ? 'Ya Distribuido' : comensales.length > 0 ? 'Guardar y Distribuir Diferencia' : 'Guardar Valor (sin distribuir)'}
+              {submittingRestaurantBill
+                ? tr('Guardando...', 'Saving...')
+                : vaca?.restaurantBillTotal
+                  ? tr('Ya Distribuido', 'Already distributed')
+                  : tr('Guardar y Distribuir Diferencia', 'Save and distribute difference')}
             </button>
             {vaca?.restaurantBillTotal && (
               <p className="text-xs text-green-600 mt-2">
-                ✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.
-              </p>
-            )}
-            {payments.length > 0 && (
-              <p className="text-xs text-red-600 mt-2">
-                ⚠ El formulario está deshabilitado porque algunos comensales ya han realizado pagos.
+                {tr(
+                  '✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.',
+                  '✓ The restaurant bill was saved and the difference was distributed.'
+                )}
               </p>
             )}
           </form>
@@ -1257,13 +1657,18 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Comensales List */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Comensales Registrados
+              {tr('Comensales Registrados', 'Registered diners')}
             </h2>
             <div className="space-y-3">
-              {comensales.map((comensal) => {
+              {comensales.filter((c) => !c.mergedIntoId).length === 0 ? (
+                <p className="text-gray-500 text-center py-6">
+                  Aún no hay comensales registrados. Comparte el QR para que se unan.
+                </p>
+              ) : (
+              comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
                 // Calculate total for this comensal
                 const comensalProducts = vaca.products.filter(
                   (p) => p.comensalId === comensal.id
@@ -1272,7 +1677,7 @@ export default function VaqueroDashboard() {
                   (sum, p) => sum + p.valorEnCarta * p.numero,
                   0
                 );
-                const comensalTip = comensalSubtotal * 0.1;
+                const comensalTip = comensalSubtotal * tipRate;
                 const comensalTotal = comensalSubtotal + comensalTip;
 
                 // Check if comensal has paid
@@ -1289,8 +1694,65 @@ export default function VaqueroDashboard() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-800">{comensal.name}</p>
                       <p className="text-sm text-gray-600">
-                        Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
+                        {tr('Se unió el', 'Joined on')}{' '}
+                        {new Date(comensal.joinedAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
                       </p>
+                      {advancedFeaturesEnabled && (
+                        <>
+                          <div className="mt-2">
+                            <div className="flex flex-nowrap gap-2 items-center">
+                              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                                {tr('Fusionar con', 'Merge into')}
+                              </span>
+                              <select
+                                value={mergeTargetByComensalId[comensal.id] || ''}
+                                onChange={(e) =>
+                                  setMergeTargetByComensalId((prev) => ({
+                                    ...prev,
+                                    [comensal.id]: e.target.value,
+                                  }))
+                                }
+                                className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              >
+                                <option value="">Selecciona un comensal...</option>
+                                {comensales
+                                  .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
+                                  .map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleMergeComensales(comensal.id)}
+                                disabled={!!mergingIds[comensal.id]}
+                                className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {tr(
+                                'Los productos de este comensal pasarán al comensal elegido.',
+                                'This diner’s items will be moved to the selected diner.'
+                              )}
+                            </p>
+                          </div>
+                          {!hasPaid && comensalTotal > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkTransferred(comensal, comensalTotal)}
+                              disabled={!!markingPaidIds[comensal.id]}
+                              className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                              aria-label={`Marcar como pagado: ${comensal.name}`}
+                              title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
+                            >
+                              {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center">
                       <p
@@ -1298,21 +1760,22 @@ export default function VaqueroDashboard() {
                           hasPaid ? 'text-green-600' : 'text-red-600'
                         }`}
                       >
-                        ${Math.round(comensalTotal).toLocaleString('es-CO')}
+                        {formatMoney(comensalTotal)}
                       </p>
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </div>
         )}
 
         {/* Payments List */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Pagos Recibidos
+              {tr('Pagos Recibidos', 'Payments received')}
             </h2>
             {payments.length > 0 ? (
             <>
@@ -1323,64 +1786,71 @@ export default function VaqueroDashboard() {
                     className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200"
                   >
                     <div>
-                      <p className="font-medium text-gray-800">{payment.consignadorName}</p>
+                      <p className="font-medium text-gray-800">
+                        {(comensales.find((c) => c.id === payment.comensalId)?.name) || 'Comensal'}
+                      </p>
                       <p className="text-sm text-gray-600">
-                        Pagado el {new Date(payment.paidAt as string | Date).toLocaleString('es-CO')}
+                        {tr('Consignó', 'Paid by')}: {payment.consignadorName} ·{' '}
+                        {tr('Pagado el', 'Paid on')}{' '}
+                        {new Date(payment.paidAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-green-700">
-                      ${Math.round(payment.amount).toLocaleString('es-CO')}
+                      {formatMoney(payment.amount)}
                     </p>
                   </div>
                 ))}
               </div>
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between text-xl font-bold text-gray-800">
-                  <span>Total Recaudado:</span>
+                  <span>{tr('Total Recaudado', 'Total collected')}:</span>
                   <span className={
-                    totalCollected > total 
+                    totalCollectedRounded > totalRounded 
                       ? 'text-violet-600' 
-                      : totalCollected < total 
+                      : totalCollectedRounded < totalRounded 
                         ? 'text-red-600' 
                         : 'text-green-700'
                   }>
-                    ${Math.round(totalCollected).toLocaleString('es-CO')}
+                    {formatMoney(totalCollected)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 mt-2">
-                  <span>Total Esperado:</span>
-                  <span>${Math.round(total).toLocaleString('es-CO')}</span>
+                  <span>{tr('Total Esperado', 'Expected total')}:</span>
+                  <span>{formatMoney(total)}</span>
                 </div>
-                {totalCollected > total && (
+                {totalCollectedRounded > totalRounded && (
                   <p className="text-sm text-violet-600 font-medium mt-2">
-                    ⚠ Se ha recibido más del total esperado
+                    {tr(
+                      '⚠ Se ha recibido más del total esperado',
+                      '⚠ Collected more than expected'
+                    )}
                   </p>
                 )}
-                {totalCollected === total && (
+                {totalCollectedRounded === totalRounded && (
                   <p className="text-sm text-green-600 font-medium mt-2">
-                    ✓ Todos los pagos han sido recibidos
+                    {tr('✓ Todos los pagos han sido recibidos', '✓ All payments have been received')}
                   </p>
                 )}
-                {totalCollected < total && (
+                {totalCollectedRounded < totalRounded && (
                   <p className="text-sm text-red-600 font-medium mt-2">
-                    Pendiente: ${Math.round(total - totalCollected).toLocaleString('es-CO')}
+                    {tr('Pendiente', 'Pending')}: {formatMoney(totalRounded - totalCollectedRounded)}
                   </p>
                 )}
               </div>
             </>
           ) : (
             <p className="text-gray-500 text-center py-8">
-              Aún no se han registrado pagos
+              {tr('Aún no se han registrado pagos', 'No payments recorded yet')}
             </p>
           )}
           </div>
         )}
 
         {/* Payment QR - Información de Pago */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Información de Pago
+              {tr('Información de Pago', 'Payment info')}
             </h2>
             <input
               ref={fileInputRef}
@@ -1404,7 +1874,7 @@ export default function VaqueroDashboard() {
                   onClick={handleUploadButtonClick}
                   className="text-sm text-indigo-600 hover:text-indigo-700 mb-4"
                 >
-                  Cambiar QR
+                  {tr('Cambiar QR', 'Change QR')}
                 </button>
               </div>
             ) : (
@@ -1412,19 +1882,29 @@ export default function VaqueroDashboard() {
                 onClick={handleUploadButtonClick}
                 className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors mb-4"
               >
-                Subir QR de Pago
+                {tr('Subir QR de Pago', 'Upload payment QR')}
               </button>
             )}
             
             {/* Bre-B Key Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Llave de <span className="bre-b-text">Bre-B</span>
+                {isEn ? tr('', 'Account key') : tr('Llave de', '')}{' '}
+                {!isEn && <span className="bre-b-text">Bre-B</span>}
               </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                {tr(
+                  'Este es un código numérico o alfanumérico usado en Colombia para transferencias entre bancos. Si estás en otro país puedes poner aquí otra información alfanumérica (número de cuenta y banco por ejemplo)',
+                  'This is an account identifier used for bank transfers. If you are in another country, you can put other account information here (account number and bank, for example).'
+                )}
+              </p>
               {brebKey && !editingBrebKey ? (
                 <div className="space-y-3">
                   <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Llave de <span className="bre-b-text">Bre-B</span>:</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {isEn ? tr('', 'Account key') : tr('Llave de', '')}{' '}
+                      {!isEn && <span className="bre-b-text">Bre-B</span>}:
+                    </p>
                     <p className="text-xl font-bold text-indigo-700 break-all">
                       {brebKey}
                     </p>
@@ -1433,7 +1913,7 @@ export default function VaqueroDashboard() {
                     onClick={handleChangeBreBKey}
                     className="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
                   >
-                    Cambiar Llave
+                    {tr('Cambiar Llave', 'Change key')}
                   </button>
                 </div>
               ) : (
@@ -1441,9 +1921,15 @@ export default function VaqueroDashboard() {
                   <div>
                     <label htmlFor="brebKeyInput" className="block text-sm font-medium text-gray-700 mb-2">
                       {brebKey ? (
-                        <>Editar Llave de <span className="bre-b-text">Bre-B</span></>
+                        <>
+                          {tr('Editar Llave de', 'Edit key')}{' '}
+                          {!isEn && <span className="bre-b-text">Bre-B</span>}
+                        </>
                       ) : (
-                        <>Ingresa la Llave de <span className="bre-b-text">Bre-B</span></>
+                        <>
+                          {tr('Ingresa la Llave de', 'Enter key')}{' '}
+                          {!isEn && <span className="bre-b-text">Bre-B</span>}
+                        </>
                       )}
                     </label>
                     <input
@@ -1453,11 +1939,18 @@ export default function VaqueroDashboard() {
                       value={brebKeyInput}
                       onChange={(e) => setBrebKeyInput(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Ej: @ABC123456789"
+                      placeholder={tr('Ej: @ABC123456789', 'e.g. @ABC123456789')}
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Valor alfanumérico del sistema bancario colombiano <span className="bre-b-text">Bre-B</span> (normalmente comienza con @)
+                      {isEn
+                        ? tr('', "Alphanumeric account identifier (often starts with '@')")
+                        : (
+                          <>
+                            Valor alfanumérico del sistema bancario colombiano{' '}
+                            <span className="bre-b-text">Bre-B</span> (normalmente comienza con @)
+                          </>
+                        )}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -1470,7 +1963,7 @@ export default function VaqueroDashboard() {
                         }}
                         className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                       >
-                        Cancelar
+                        {tr('Cancelar', 'Cancel')}
                       </button>
                     )}
                     <button
@@ -1478,9 +1971,11 @@ export default function VaqueroDashboard() {
                       disabled={submittingBrebKey}
                       className={`${brebKey ? 'flex-1' : 'w-full'} py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {submittingBrebKey ? 'Guardando...' : brebKey ? 'Guardar Cambios' : (
-                        <>Guardar Llave de <span className="bre-b-text">Bre-B</span></>
-                      )}
+                      {submittingBrebKey
+                        ? tr('Guardando...', 'Saving...')
+                        : brebKey
+                          ? tr('Guardar Cambios', 'Save changes')
+                          : (isEn ? tr('', 'Save key') : <>Guardar Llave de <span className="bre-b-text">Bre-B</span></>)}
                     </button>
                   </div>
                 </form>
@@ -1511,7 +2006,7 @@ export default function VaqueroDashboard() {
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              Exportar Informe PDF
+              {tr('Exportar Informe PDF', 'Export PDF report')}
             </button>
             <button
               onClick={() => router.push('/')}
@@ -1532,7 +2027,7 @@ export default function VaqueroDashboard() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Nueva Vaca
+              {tr('Nueva Vaca', 'New session')}
             </button>
           </div>
         )}

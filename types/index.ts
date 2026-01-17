@@ -20,6 +20,7 @@ export interface Vaca {
   paymentQRCode?: string; // Base64 encoded image or URL
   brebKey?: string; // Llave de Bre-B (sistema bancario colombiano)
   restaurantBillTotal?: number; // Valor total de la cuenta del restaurante
+  tipPercent?: number; // Porcentaje de propina (por defecto 10)
   isActive: boolean;
 }
 
@@ -28,6 +29,8 @@ export interface Comensal {
   name: string;
   vacaId: string;
   joinedAt: Date;
+  mergedIntoId?: string; // Si existe, esta cuenta fue fusionada con otro comensal
+  mergedAt?: Date;
 }
 
 export interface Payment {

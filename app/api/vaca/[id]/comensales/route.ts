@@ -13,6 +13,7 @@ export async function GET(
     const serializedComensales = comensales.map(c => ({
       ...c,
       joinedAt: c.joinedAt.toISOString(),
+      mergedAt: c.mergedAt ? c.mergedAt.toISOString() : undefined,
     }));
 
     return NextResponse.json({ comensales: serializedComensales });
