@@ -870,6 +870,39 @@ export default function VaqueroDashboard() {
           </form>
         </div>
 
+        {/* Products List */}
+        {comensales.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              Productos Agregados por Comensales
+            </h2>
+            {vaca.products.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                Aún no hay productos agregados
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {vaca.products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">{product.producto}</p>
+                      <p className="text-sm text-gray-600">
+                        {product.comensalName || 'Comensal'} • Cantidad: {product.numero}
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Add Product Form */}
         {comensales.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
@@ -1230,39 +1263,6 @@ export default function VaqueroDashboard() {
             </div>
           );
         })()}
-
-        {/* Products List */}
-        {comensales.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Productos Agregados por Comensales
-            </h2>
-            {vaca.products.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
-                Aún no hay productos agregados
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {vaca.products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{product.producto}</p>
-                      <p className="text-sm text-gray-600">
-                        {product.comensalName || 'Comensal'} • Cantidad: {product.numero}
-                      </p>
-                    </div>
-                    <p className="text-lg font-semibold text-gray-800">
-                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Total */}
         {comensales.length > 0 && (
