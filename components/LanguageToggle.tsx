@@ -44,9 +44,12 @@ export default function LanguageToggle() {
             key={b.lang}
             type="button"
             onClick={() => {
+              if (lang === b.lang) return;
               setLangCookie(b.lang);
               setLang(b.lang);
-              router.refresh();
+              // In Next 16 App Router, a full reload is the most reliable way to
+              // ensure server components re-render with the updated cookie.
+              window.location.reload();
             }}
             className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border shadow-sm transition-colors ${
               active
