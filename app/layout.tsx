@@ -5,6 +5,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import PayPalDonate from "@/components/PayPalDonate";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import LanguageToggle from "@/components/LanguageToggle";
+import { getLang } from "@/lib/lang";
 
 // Ensure env-based scripts (GA) are rendered at runtime on Render+Docker.
 // Otherwise, static prerendering during build may miss NEXT_PUBLIC_* env vars.
@@ -59,6 +61,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lang = getLang();
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";
@@ -85,7 +88,7 @@ export default function RootLayout({
   };
   
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang={lang} className="h-full" suppressHydrationWarning>
       <head>
         {gaMeasurementId ? (
           <>
@@ -111,16 +114,19 @@ gtag('config', '${gaMeasurementId}');
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-full`}
       >
         {gaMeasurementId ? <GoogleAnalytics measurementId={gaMeasurementId} /> : null}
-        <a
-          href={`mailto:${developerEmail}?subject=${encodeURIComponent(
-            "Sugerencias para Mi Vaca (beta)"
-          )}`}
-          className="fixed top-3 left-3 z-50 inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
-          title="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
-          aria-label="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
-        >
-          β
-        </a>
+        <div className="fixed top-3 left-3 z-50 flex flex-col items-start gap-2">
+          <a
+            href={`mailto:${developerEmail}?subject=${encodeURIComponent(
+              "Sugerencias para Mi Vaca (beta)"
+            )}`}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+            title="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
+            aria-label="Versión beta — sugerencias bienvenidas (clic para escribir al desarrollador)"
+          >
+            β
+          </a>
+          <LanguageToggle />
+        </div>
         <main className="flex-1">
           {children}
         </main>
