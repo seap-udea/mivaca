@@ -278,6 +278,15 @@ export default function VaqueroDashboard() {
     setBrebKeyInput(brebKey);
   }, [brebKey]);
 
+  const paidComensalIds = useMemo(
+    () => new Set(payments.map((p) => p.comensalId)),
+    [payments]
+  );
+  const unpaidComensalesCount = useMemo(
+    () => comensales.filter((c) => !paidComensalIds.has(c.id)).length,
+    [comensales, paidComensalIds]
+  );
+
   const handleRestaurantBillSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -422,14 +431,6 @@ export default function VaqueroDashboard() {
   const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
   const tipFactor = useMemo(() => 1 + tipRate, [tipRate]);
   const tip = useMemo(() => subtotal * tipRate, [subtotal, tipRate]);
-  const paidComensalIds = useMemo(
-    () => new Set(payments.map((p) => p.comensalId)),
-    [payments]
-  );
-  const unpaidComensalesCount = useMemo(
-    () => comensales.filter((c) => !paidComensalIds.has(c.id)).length,
-    [comensales, paidComensalIds]
-  );
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
