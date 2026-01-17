@@ -1516,18 +1516,11 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Restaurant Bill Total Form - Cerrar cuenta de la vaca */}
-        {(
+        {(comensales.length > 0 && vaca.products.length > 0) && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Cerrar cuenta de la vaca
             </h2>
-            {comensales.length === 0 && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  Para cerrar la cuenta y distribuir diferencias, primero debe unirse al menos un comensal.
-                </p>
-              </div>
-            )}
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
@@ -1551,7 +1544,7 @@ export default function VaqueroDashboard() {
                 step="1"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Ej: 150000"
-                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
+                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -1577,7 +1570,7 @@ export default function VaqueroDashboard() {
             </div>
             <button
               type="submit"
-              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
+              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
               className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 vaca?.restaurantBillTotal 
