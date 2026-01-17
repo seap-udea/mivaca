@@ -1564,20 +1564,23 @@ export default function VaqueroDashboard() {
         {(comensales.length > 0 && vaca.products.length > 0) && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Cerrar cuenta de la vaca
+              {tr('Cerrar cuenta de la vaca', 'Close the bill')}
             </h2>
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  Nota: si algunos comensales ya pagaron, cualquier diferencia se distribuirá entre quienes{" "}
-                  <b>aún no han transferido</b>.
+                  {tr(
+                    'Nota: si algunos comensales ya pagaron, cualquier diferencia se distribuirá entre quienes',
+                    'Note: if some diners already paid, any difference will be distributed among those who'
+                  )}{' '}
+                  <b>{tr('aún no han transferido', "haven't paid yet")}</b>.
                 </p>
               </div>
             )}
             <form onSubmit={handleRestaurantBillSubmit} className="space-y-4">
             <div>
               <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
-                Valor total de la cuenta del restaurante
+                {tr('Valor total de la cuenta del restaurante', 'Restaurant bill total')}
               </label>
               <input
                 ref={restaurantBillTotalInputRef}
@@ -1588,12 +1591,15 @@ export default function VaqueroDashboard() {
                 min="0"
                 step={isEn ? '0.01' : '1'}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Ej: 150000"
+                placeholder={tr('Ej: 150000', 'e.g. 150000')}
                 disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.
+                {tr(
+                  'Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.',
+                  'Enter the restaurant bill total. Any difference vs the app total will be distributed evenly among diners.'
+                )}
               </p>
               {vaca?.restaurantBillTotal && (
                 <p className="text-xs text-gray-600 mt-1 font-medium">
@@ -1625,15 +1631,25 @@ export default function VaqueroDashboard() {
               className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 vaca?.restaurantBillTotal 
-                    ? 'Ya se ha guardado y distribuido el valor de la cuenta del restaurante' 
+                    ? tr(
+                        'Ya se ha guardado y distribuido el valor de la cuenta del restaurante',
+                        'The restaurant bill has already been saved and distributed'
+                      )
                     : ''
               }
             >
-              {submittingRestaurantBill ? 'Guardando...' : vaca?.restaurantBillTotal ? 'Ya Distribuido' : comensales.length > 0 ? 'Guardar y Distribuir Diferencia' : 'Guardar Valor (sin distribuir)'}
+              {submittingRestaurantBill
+                ? tr('Guardando...', 'Saving...')
+                : vaca?.restaurantBillTotal
+                  ? tr('Ya Distribuido', 'Already distributed')
+                  : tr('Guardar y Distribuir Diferencia', 'Save and distribute difference')}
             </button>
             {vaca?.restaurantBillTotal && (
               <p className="text-xs text-green-600 mt-2">
-                ✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.
+                {tr(
+                  '✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.',
+                  '✓ The restaurant bill was saved and the difference was distributed.'
+                )}
               </p>
             )}
           </form>
@@ -1867,16 +1883,22 @@ export default function VaqueroDashboard() {
             {/* Bre-B Key Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                {tr('Llave de', 'Bre-B key')} <span className="bre-b-text">Bre-B</span>
+                {isEn ? tr('', 'Account key') : tr('Llave de', '')}{' '}
+                {!isEn && <span className="bre-b-text">Bre-B</span>}
               </h3>
               <p className="text-sm text-gray-600 mb-3">
-                Este es un código numérico o alfanumérico usado en Colombia para transferencias entre bancos.
-                Si estás en otro país puedes poner aquí otra información alfanumérica (número de cuenta y banco por ejemplo)
+                {tr(
+                  'Este es un código numérico o alfanumérico usado en Colombia para transferencias entre bancos. Si estás en otro país puedes poner aquí otra información alfanumérica (número de cuenta y banco por ejemplo)',
+                  'This is an account identifier used for bank transfers. If you are in another country, you can put other account information here (account number and bank, for example).'
+                )}
               </p>
               {brebKey && !editingBrebKey ? (
                 <div className="space-y-3">
                   <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Llave de <span className="bre-b-text">Bre-B</span>:</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {isEn ? tr('', 'Account key') : tr('Llave de', '')}{' '}
+                      {!isEn && <span className="bre-b-text">Bre-B</span>}:
+                    </p>
                     <p className="text-xl font-bold text-indigo-700 break-all">
                       {brebKey}
                     </p>
@@ -1885,7 +1907,7 @@ export default function VaqueroDashboard() {
                     onClick={handleChangeBreBKey}
                     className="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
                   >
-                    Cambiar Llave
+                    {tr('Cambiar Llave', 'Change key')}
                   </button>
                 </div>
               ) : (
@@ -1893,9 +1915,15 @@ export default function VaqueroDashboard() {
                   <div>
                     <label htmlFor="brebKeyInput" className="block text-sm font-medium text-gray-700 mb-2">
                       {brebKey ? (
-                        <>Editar Llave de <span className="bre-b-text">Bre-B</span></>
+                        <>
+                          {tr('Editar Llave de', 'Edit key')}{' '}
+                          {!isEn && <span className="bre-b-text">Bre-B</span>}
+                        </>
                       ) : (
-                        <>Ingresa la Llave de <span className="bre-b-text">Bre-B</span></>
+                        <>
+                          {tr('Ingresa la Llave de', 'Enter key')}{' '}
+                          {!isEn && <span className="bre-b-text">Bre-B</span>}
+                        </>
                       )}
                     </label>
                     <input
@@ -1905,11 +1933,18 @@ export default function VaqueroDashboard() {
                       value={brebKeyInput}
                       onChange={(e) => setBrebKeyInput(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Ej: @ABC123456789"
+                      placeholder={tr('Ej: @ABC123456789', 'e.g. @ABC123456789')}
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Valor alfanumérico del sistema bancario colombiano <span className="bre-b-text">Bre-B</span> (normalmente comienza con @)
+                      {isEn
+                        ? tr('', "Alphanumeric account identifier (often starts with '@')")
+                        : (
+                          <>
+                            Valor alfanumérico del sistema bancario colombiano{' '}
+                            <span className="bre-b-text">Bre-B</span> (normalmente comienza con @)
+                          </>
+                        )}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -1922,7 +1957,7 @@ export default function VaqueroDashboard() {
                         }}
                         className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                       >
-                        Cancelar
+                        {tr('Cancelar', 'Cancel')}
                       </button>
                     )}
                     <button
@@ -1930,9 +1965,11 @@ export default function VaqueroDashboard() {
                       disabled={submittingBrebKey}
                       className={`${brebKey ? 'flex-1' : 'w-full'} py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {submittingBrebKey ? 'Guardando...' : brebKey ? 'Guardar Cambios' : (
-                        <>Guardar Llave de <span className="bre-b-text">Bre-B</span></>
-                      )}
+                      {submittingBrebKey
+                        ? tr('Guardando...', 'Saving...')
+                        : brebKey
+                          ? tr('Guardar Cambios', 'Save changes')
+                          : (isEn ? tr('', 'Save key') : <>Guardar Llave de <span className="bre-b-text">Bre-B</span></>)}
                     </button>
                   </div>
                 </form>
