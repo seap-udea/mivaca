@@ -922,8 +922,8 @@ export default function VaqueroDashboard() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
                 aria-label={tr(
-                  'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
-                  'Watch video tutorial on YouTube (opens in a new tab)'
+                  'Ver video tutorial (en español) en YouTube (se abre en una nueva pestaña)',
+                  'Watch video tutorial (in Spanish) on YouTube (opens in a new tab)'
                 )}
               >
                 <svg
@@ -946,7 +946,7 @@ export default function VaqueroDashboard() {
                     d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                {tr('Ver video tutorial', 'Watch tutorial')}
+                {tr('Ver video tutorial', 'Watch tutorial')} <span aria-hidden>🇨🇴</span>
               </a>
               <button
                 type="button"
