@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
-import { getClientLang } from '@/lib/langClient';
+import { getClientLang, type Lang } from '@/lib/langClient';
 
 export default function Home() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
@@ -13,7 +13,10 @@ export default function Home() {
   const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const lang = useMemo(() => getClientLang(), []);
+  const [lang, setLang] = useState<Lang>('es');
+  useEffect(() => {
+    setLang(getClientLang());
+  }, []);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
 

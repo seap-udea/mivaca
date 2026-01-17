@@ -9,14 +9,17 @@ import autoTable from 'jspdf-autotable';
 import confetti from 'canvas-confetti';
 import { v4 as uuidv4 } from 'uuid';
 import { Vaca, Product, Comensal, Payment } from '@/types';
-import { getClientLang } from '@/lib/langClient';
+import { getClientLang, type Lang } from '@/lib/langClient';
 
 export default function VaqueroDashboard() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
-  const lang = useMemo(() => getClientLang(), []);
+  const [lang, setLang] = useState<Lang>('es');
+  useEffect(() => {
+    setLang(getClientLang());
+  }, []);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   // Advanced features are off by default; user can enable them from the UI.

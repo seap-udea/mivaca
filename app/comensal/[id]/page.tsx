@@ -7,13 +7,16 @@ import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
 import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
-import { getClientLang } from '@/lib/langClient';
+import { getClientLang, type Lang } from '@/lib/langClient';
 
 export default function ComensalPage() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const vacaId = params.id as string;
-  const lang = useMemo(() => getClientLang(), []);
+  const [lang, setLang] = useState<Lang>('es');
+  useEffect(() => {
+    setLang(getClientLang());
+  }, []);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   const [vaca, setVaca] = useState<Vaca | null>(null);
