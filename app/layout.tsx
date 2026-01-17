@@ -56,12 +56,12 @@ function getVersionYear(): number {
   }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const lang = getLang();
+  const lang = await getLang();
   const versionDate = getVersionDate();
   const versionYear = getVersionYear();
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "";

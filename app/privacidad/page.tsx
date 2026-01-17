@@ -6,8 +6,8 @@ export const metadata = {
   description: "Política de privacidad para Mi Vaca.",
 };
 
-export default function PrivacidadPage() {
-  const lang = getLang();
+export default async function PrivacidadPage() {
+  const lang = await getLang();
   const isEn = lang === "en";
   const lastUpdate = new Date().toLocaleDateString(isEn ? "en-GB" : "es-CO");
 

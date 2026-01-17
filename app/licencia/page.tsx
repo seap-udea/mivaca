@@ -6,8 +6,8 @@ export const metadata = {
   description: "Resumen de la licencia de uso de Mi Vaca.",
 };
 
-export default function LicenciaPage() {
-  const lang = getLang();
+export default async function LicenciaPage() {
+  const lang = await getLang();
   const isEn = lang === "en";
 
   return (

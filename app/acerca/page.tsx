@@ -6,8 +6,8 @@ export const metadata = {
   description: "Información sobre Mi Vaca, su propósito y contacto.",
 };
 
-export default function AcercaPage() {
-  const lang = getLang();
+export default async function AcercaPage() {
+  const lang = await getLang();
   const isEn = lang === "en";
 
   return (
