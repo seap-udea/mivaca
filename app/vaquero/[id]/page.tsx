@@ -1702,7 +1702,7 @@ export default function VaqueroDashboard() {
                           <div className="mt-2">
                             <div className="flex flex-nowrap gap-2 items-center">
                               <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                                Fusionar con
+                                {tr('Fusionar con', 'Merge into')}
                               </span>
                               <select
                                 value={mergeTargetByComensalId[comensal.id] || ''}
@@ -1733,7 +1733,10 @@ export default function VaqueroDashboard() {
                               </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              Los productos de este comensal pasarán al comensal elegido.
+                              {tr(
+                                'Los productos de este comensal pasarán al comensal elegido.',
+                                'This diner’s items will be moved to the selected diner.'
+                              )}
                             </p>
                           </div>
                           {!hasPaid && comensalTotal > 0 && (

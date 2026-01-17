@@ -796,7 +796,7 @@ export default function ComensalPage() {
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
               <div>
                 <label htmlFor="consignadorName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre de quién consigna
+                  {tr('Nombre de quién consigna', 'Payer name')}
                 </label>
                 <input
                   id="consignadorName"
@@ -808,12 +808,12 @@ export default function ComensalPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Ej. Juan Pérez
+                  {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
                 </p>
               </div>
               <div>
                 <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Valor pagado
+                  {tr('Valor pagado', 'Amount paid')}
                 </label>
                 <input
                   id="paymentAmount"
@@ -821,13 +821,16 @@ export default function ComensalPage() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   min="0"
-                  step="1"
+                  step={isEn ? '0.01' : '1'}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={hasPaid}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Ingresa el valor en número sin puntos, ni signo '$'
+                  {tr(
+                    "Ingresa el valor en número sin puntos, ni signo '$'",
+                    'Enter the amount as a number'
+                  )}
                 </p>
               </div>
               <button
@@ -836,7 +839,7 @@ export default function ComensalPage() {
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Registrar pago"
               >
-                {submittingPayment ? 'Enviando...' : 'Enviar'}
+                {submittingPayment ? tr('Enviando...', 'Sending...') : tr('Enviar', 'Send')}
               </button>
             </form>
               </>
