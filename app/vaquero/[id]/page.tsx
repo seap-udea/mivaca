@@ -9,12 +9,16 @@ import autoTable from 'jspdf-autotable';
 import confetti from 'canvas-confetti';
 import { v4 as uuidv4 } from 'uuid';
 import { Vaca, Product, Comensal, Payment } from '@/types';
+import { getClientLang } from '@/lib/langClient';
 
 export default function VaqueroDashboard() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
+  const lang = useMemo(() => getClientLang(), []);
+  const isEn = lang === 'en';
+  const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   // Advanced features are off by default; user can enable them from the UI.
   const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
   const [vaca, setVaca] = useState<Vaca | null>(null);
@@ -857,7 +861,7 @@ export default function VaqueroDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-gray-600">Cargando...</div>
+        <div className="text-gray-600">{tr('Cargando...', 'Loading...')}</div>
       </div>
     );
   }
@@ -865,7 +869,7 @@ export default function VaqueroDashboard() {
   if (!vaca) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-red-600">Vaca no encontrada</div>
+        <div className="text-red-600">{tr('Vaca no encontrada', 'Session not found')}</div>
       </div>
     );
   }
@@ -886,7 +890,7 @@ export default function VaqueroDashboard() {
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">{vaca.name}</h1>
           <p className="text-gray-600 text-sm text-center">
-            Creada el {new Date(vaca.createdAt).toLocaleString('es-CO')}
+            {tr('Creada el', 'Created on')} {new Date(vaca.createdAt).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
           </p>
           <div className="mt-4 flex justify-center">
             <div className="flex flex-col items-center gap-2">
@@ -895,7 +899,10 @@ export default function VaqueroDashboard() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-                aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
+                aria-label={tr(
+                  'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
+                  'Watch video tutorial on YouTube (opens in a new tab)'
+                )}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -917,7 +924,7 @@ export default function VaqueroDashboard() {
                     d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                Ver video tutorial
+                {tr('Ver video tutorial', 'Watch tutorial')}
               </a>
               <button
                 type="button"
@@ -925,8 +932,8 @@ export default function VaqueroDashboard() {
                 className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
               >
                 {advancedFeaturesEnabled
-                  ? 'Desactivar características avanzadas'
-                  : 'Activar caracteristicas avanzadas'}
+                  ? tr('Desactivar características avanzadas', 'Disable advanced features')
+                  : tr('Activar caracteristicas avanzadas', 'Enable advanced features')}
               </button>
             </div>
           </div>
@@ -935,7 +942,7 @@ export default function VaqueroDashboard() {
         {/* QR Code for Comensales */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            QR para Comensales
+            {tr('QR para Comensales', 'QR for diners')}
           </h2>
           <div className="flex justify-center mb-4">
             {joinUrl && (
@@ -943,7 +950,7 @@ export default function VaqueroDashboard() {
             )}
           </div>
           <p className="text-sm text-gray-600 text-center">
-            Comparte este QR para que tus amigos se unan
+            {tr('Comparte este QR para que tus amigos se unan', 'Share this QR so your friends can join')}
           </p>
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-2">
@@ -951,21 +958,21 @@ export default function VaqueroDashboard() {
               <button
                 onClick={copyToClipboard}
                 className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 whitespace-nowrap"
-                aria-label="Copiar enlace para comensales"
+                aria-label={tr('Copiar enlace para comensales', 'Copy link for diners')}
               >
                 {copied ? (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Copiado
+                    {tr('Copiado', 'Copied')}
                   </>
                 ) : (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
-                    Copiar
+                    {tr('Copiar', 'Copy')}
                   </>
                 )}
               </button>
