@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
+import { getClientLang } from '@/lib/langClient';
 
 export default function Home() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
@@ -12,6 +13,9 @@ export default function Home() {
   const [vaqueroName, setVaqueroName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const lang = useMemo(() => getClientLang(), []);
+  const isEn = lang === 'en';
+  const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
 
   // Banners manuales de restaurantes (alternativa a AdSense)
   const restaurantAds = getRandomActiveAds(1);
@@ -40,11 +44,11 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error creating vaca:', error);
-      alert('Error al crear la vaca');
+      alert(tr('Error al crear la vaca', 'Error creating the vaca'));
     } finally {
       setLoading(false);
     }
-  }, [vacaName, vaqueroName, router]);
+  }, [vacaName, vaqueroName, router, tr]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
@@ -63,7 +67,10 @@ export default function Home() {
           Mi Vaca
         </h1>
         <p className="text-gray-600 text-center mb-6">
-          Comparte la cuenta del restaurante con tus amigos
+          {tr(
+            'Comparte la cuenta del restaurante con tus amigos',
+            'Split the restaurant bill with your friends'
+          )}
         </p>
 
         <div className="mb-6 flex justify-center">
@@ -72,7 +79,10 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-            aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
+            aria-label={tr(
+              'Ver video tutorial en YouTube (se abre en una nueva pestaña)',
+              'Watch video tutorial on YouTube (opens in a new tab)'
+            )}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -94,14 +104,14 @@ export default function Home() {
                 d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            Ver video tutorial
+            {tr('Ver video tutorial', 'Watch tutorial')}
           </a>
         </div>
         
         <form onSubmit={handleCreateVaca} className="space-y-4">
           <div>
             <label htmlFor="vaqueroName" className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre vaquer@
+              {tr('Nombre vaquer@', 'Host name')}
             </label>
             <input
               id="vaqueroName"
@@ -112,12 +122,12 @@ export default function Home() {
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Ej. Pepita Pérez
+              {tr('Ej. Pepita Pérez', 'e.g. Alex Smith')}
             </p>
           </div>
           <div>
             <label htmlFor="vacaName" className="block text-sm font-medium text-gray-700 mb-2">
-              Nombre de la Vaca
+              {tr('Nombre de la Vaca', 'Session name')}
             </label>
             <input
               id="vacaName"
@@ -128,7 +138,7 @@ export default function Home() {
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Ej. Cena en el restaurante
+              {tr('Ej. Cena en el restaurante', 'e.g. Dinner at the restaurant')}
             </p>
           </div>
           
@@ -136,15 +146,18 @@ export default function Home() {
             type="submit"
             disabled={loading}
             className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Crear nueva vaca"
+            aria-label={tr('Crear nueva vaca', 'Create new session')}
           >
-            {loading ? 'Creando...' : 'Crear Nueva Vaca'}
+            {loading ? tr('Creando...', 'Creating...') : tr('Crear Nueva Vaca', 'Create new session')}
           </button>
         </form>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
           <p className="text-sm text-gray-500 text-center">
-            ¿Eres comensal? Escanea el QR que te compartió el vaquero
+            {tr(
+              '¿Eres comensal? Escanea el QR que te compartió el vaquero',
+              'Are you a diner? Scan the QR shared by the host'
+            )}
           </p>
         </div>
       </div>
@@ -152,7 +165,9 @@ export default function Home() {
       {/* Banners manuales de restaurantes */}
       {restaurantAds.length > 0 ? (
         <div className="mt-6 w-full max-w-md">
-          <p className="text-xs text-gray-500 text-center mb-2">Restaurantes recomendados</p>
+          <p className="text-xs text-gray-500 text-center mb-2">
+            {tr('Restaurantes recomendados', 'Recommended restaurants')}
+          </p>
           {restaurantAds.map((ad) => (
             <RestaurantBanner key={ad.id} ad={ad} variant="compact" className="mb-3" />
           ))}
