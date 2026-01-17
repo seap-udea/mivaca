@@ -24,15 +24,6 @@ export async function POST(
       );
     }
 
-    // Check if any comensal has paid
-    const payments = store.getPaymentsByVaca(id);
-    if (payments.length > 0) {
-      return NextResponse.json(
-        { error: 'Cannot modify restaurant bill total after payments have been made' },
-        { status: 400 }
-      );
-    }
-
     // Save the restaurant bill total
     store.setRestaurantBillTotal(id, total);
 
@@ -73,11 +64,21 @@ export async function POST(
           );
         }
 
-        const differencePerComensal = difference / comensales.length;
+        const payments = store.getPaymentsByVaca(id);
+        const paidIds = new Set(payments.map((p) => p.comensalId));
+        const unpaidComensales = comensales.filter((c) => !paidIds.has(c.id));
+
+        // If everyone already paid, keep the total but don't distribute any difference.
+        if (unpaidComensales.length === 0) {
+          const newTotal = store.calculateTotal(id);
+          return NextResponse.json({ success: true, total: newTotal });
+        }
+
+        const differencePerComensal = difference / unpaidComensales.length;
 
         // Add the difference as a product for each comensal
       // The tip will be added automatically when calculating totals
-        comensales.forEach((comensal) => {
+        unpaidComensales.forEach((comensal) => {
           store.addProduct(id, {
             producto: 'Diferencia restaurante',
             valorEnCarta: differencePerComensal,

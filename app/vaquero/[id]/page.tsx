@@ -280,12 +280,6 @@ export default function VaqueroDashboard() {
 
   const handleRestaurantBillSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check if any comensal has paid
-    if (payments.length > 0) {
-      alert('No se puede modificar el valor de la cuenta del restaurante después de que algún comensal haya pagado');
-      return;
-    }
 
     const trimmedValue = restaurantBillTotal.trim();
     if (!trimmedValue) {
@@ -306,7 +300,7 @@ export default function VaqueroDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurantBillTotal: value,
-          distributeDifference: comensales.length > 0, // Solo distribuir si hay comensales
+          distributeDifference: unpaidComensalesCount > 0, // Distribuir solo entre quienes no han pagado
         }),
       });
 
@@ -326,7 +320,7 @@ export default function VaqueroDashboard() {
     } finally {
       setSubmittingRestaurantBill(false);
     }
-  }, [vacaId, restaurantBillTotal, payments, comensales, fetchVaca]);
+  }, [vacaId, restaurantBillTotal, unpaidComensalesCount, fetchVaca]);
 
   const handleMarkTransferred = useCallback(
     async (comensal: Comensal, amount: number) => {
@@ -428,6 +422,14 @@ export default function VaqueroDashboard() {
   const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
   const tipFactor = useMemo(() => 1 + tipRate, [tipRate]);
   const tip = useMemo(() => subtotal * tipRate, [subtotal, tipRate]);
+  const paidComensalIds = useMemo(
+    () => new Set(payments.map((p) => p.comensalId)),
+    [payments]
+  );
+  const unpaidComensalesCount = useMemo(
+    () => comensales.filter((c) => !paidComensalIds.has(c.id)).length,
+    [comensales, paidComensalIds]
+  );
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1408,7 +1410,8 @@ export default function VaqueroDashboard() {
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  Este formulario está deshabilitado porque algunos comensales ya han realizado pagos.
+                  Nota: si algunos comensales ya pagaron, cualquier diferencia se distribuirá entre quienes{" "}
+                  <b>aún no han transferido</b>.
                 </p>
               </div>
             )}
@@ -1427,7 +1430,7 @@ export default function VaqueroDashboard() {
                 step="1"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Ej: 150000"
-                disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
+                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -1442,8 +1445,8 @@ export default function VaqueroDashboard() {
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
                     <strong>Diferencia calculada (sin propina):</strong> ${Math.round((parseFloat(restaurantBillTotal) / tipFactor) - subtotal).toLocaleString('es-CO')}
-                    {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                    {unpaidComensalesCount > 0 && (
+                      <> ({unpaidComensalesCount} comensal{unpaidComensalesCount !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount).toLocaleString('es-CO')} cada uno)</>
                     )}
                     <br />
                     <span className="text-xs">La propina ({tipPercent}%) se agregará automáticamente al calcular los totales</span>
@@ -1453,12 +1456,10 @@ export default function VaqueroDashboard() {
             </div>
             <button
               type="submit"
-              disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
               className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
-                payments.length > 0 
-                  ? 'No se puede modificar después de que algún comensal haya pagado' 
-                  : vaca?.restaurantBillTotal 
+                vaca?.restaurantBillTotal 
                     ? 'Ya se ha guardado y distribuido el valor de la cuenta del restaurante' 
                     : ''
               }
@@ -1468,11 +1469,6 @@ export default function VaqueroDashboard() {
             {vaca?.restaurantBillTotal && (
               <p className="text-xs text-green-600 mt-2">
                 ✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.
-              </p>
-            )}
-            {payments.length > 0 && (
-              <p className="text-xs text-red-600 mt-2">
-                ⚠ El formulario está deshabilitado porque algunos comensales ya han realizado pagos.
               </p>
             )}
           </form>
