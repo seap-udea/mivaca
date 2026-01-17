@@ -20,6 +20,7 @@ class VacaStore {
       vaqueroId,
       vaqueroName,
       products: [],
+      tipPercent: 10,
       isActive: true,
     };
     this.vacas.set(vaca.id, vaca);
@@ -112,6 +113,19 @@ class VacaStore {
     this.vacas.set(vacaId, vaca);
   }
 
+  setTipPercent(vacaId: string, tipPercent: number): void {
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+    const normalized = Number(tipPercent);
+    if (!isFinite(normalized) || normalized < 0 || normalized > 100) {
+      throw new Error('Invalid tip percent');
+    }
+    vaca.tipPercent = normalized;
+    this.vacas.set(vacaId, vaca);
+  }
+
   calculateTotal(vacaId: string): number {
     const vaca = this.vacas.get(vacaId);
     if (!vaca) {
@@ -121,7 +135,8 @@ class VacaStore {
       (sum, product) => sum + product.valorEnCarta * product.numero,
       0
     );
-    const tip = subtotal * 0.1;
+    const tipRate = (vaca.tipPercent ?? 10) / 100;
+    const tip = subtotal * tipRate;
     return subtotal + tip;
   }
 
@@ -173,7 +188,8 @@ if (process.env.NODE_ENV !== 'production') {
   if (!globalThis.__vacaStore || 
       typeof globalThis.__vacaStore.addPayment !== 'function' ||
       typeof globalThis.__vacaStore.setBreBKey !== 'function' ||
-      typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function') {
+      typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function' ||
+      typeof globalThis.__vacaStore.setTipPercent !== 'function') {
     globalThis.__vacaStore = new VacaStore();
   }
   storeInstance = globalThis.__vacaStore;

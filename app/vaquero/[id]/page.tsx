@@ -22,6 +22,7 @@ export default function VaqueroDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const brebKeyInputRef = useRef<HTMLInputElement>(null);
   const restaurantBillTotalInputRef = useRef<HTMLInputElement>(null);
+  const tipPercentInputRef = useRef<HTMLInputElement>(null);
   const [comensales, setComensales] = useState<Comensal[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalCollected, setTotalCollected] = useState(0);
@@ -39,6 +40,8 @@ export default function VaqueroDashboard() {
   const [editingBrebKey, setEditingBrebKey] = useState(false);
   const [restaurantBillTotal, setRestaurantBillTotal] = useState('');
   const [submittingRestaurantBill, setSubmittingRestaurantBill] = useState(false);
+  const [tipPercentInput, setTipPercentInput] = useState('10');
+  const [submittingTipPercent, setSubmittingTipPercent] = useState(false);
   const confettiTriggeredRef = useRef(false);
   const [vaqueroId, setVaqueroId] = useState<string>('');
 
@@ -75,6 +78,15 @@ export default function VaqueroDashboard() {
           } else {
             setRestaurantBillTotal('');
           }
+        }
+
+        // Only update tip percent input if not currently focused
+        if (!tipPercentInputRef.current || document.activeElement !== tipPercentInputRef.current) {
+          const currentTipPercent =
+            data.vaca.tipPercent === undefined || data.vaca.tipPercent === null
+              ? 10
+              : data.vaca.tipPercent;
+          setTipPercentInput(String(currentTipPercent));
         }
       }
     } catch (error) {
@@ -315,11 +327,57 @@ export default function VaqueroDashboard() {
     }
   }, [vacaId, restaurantBillTotal, payments, comensales, fetchVaca]);
 
+  const handleTipPercentSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Check if any comensal has paid
+    if (payments.length > 0) {
+      alert('No se puede modificar el porcentaje de propina después de que algún comensal haya pagado');
+      return;
+    }
+
+    const trimmed = tipPercentInput.trim();
+    if (trimmed === '') {
+      alert('Por favor ingresa un porcentaje de propina');
+      return;
+    }
+
+    const value = Number(trimmed);
+    if (!isFinite(value) || value < 0 || value > 100) {
+      alert('Por favor ingresa un porcentaje válido entre 0 y 100');
+      return;
+    }
+
+    setSubmittingTipPercent(true);
+    try {
+      const response = await fetch(`/api/vaca/${vacaId}/tip-percent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipPercent: value }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save tip percent');
+      }
+
+      await fetchVaca();
+    } catch (error) {
+      console.error('Error saving tip percent:', error);
+      alert(error instanceof Error ? error.message : 'Error al guardar el porcentaje de propina');
+    } finally {
+      setSubmittingTipPercent(false);
+    }
+  }, [vacaId, tipPercentInput, payments, fetchVaca]);
+
   const subtotal = useMemo(
     () => vaca?.products.reduce((sum, p) => sum + p.valorEnCarta * p.numero, 0) ?? 0,
     [vaca?.products]
   );
-  const tip = useMemo(() => subtotal * 0.1, [subtotal]);
+  const tipPercent = useMemo(() => vaca?.tipPercent ?? 10, [vaca?.tipPercent]);
+  const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
+  const tipFactor = useMemo(() => 1 + tipRate, [tipRate]);
+  const tip = useMemo(() => subtotal * tipRate, [subtotal, tipRate]);
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -539,7 +597,7 @@ export default function VaqueroDashboard() {
     doc.setFontSize(12);
     doc.text(`Subtotal: $${Math.round(subtotal).toLocaleString('es-CO')}`, 14, yPosition);
     yPosition += 7;
-    doc.text(`Propina (10%): $${Math.round(tip).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Propina (${tipPercent}%): $${Math.round(tip).toLocaleString('es-CO')}`, 14, yPosition);
     yPosition += 7;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -559,7 +617,7 @@ export default function VaqueroDashboard() {
           (sum, p) => sum + p.valorEnCarta * p.numero,
           0
         );
-        const comensalTip = comensalSubtotal * 0.1;
+        const comensalTip = comensalSubtotal * tipRate;
         const comensalTotal = comensalSubtotal + comensalTip;
         const hasPaid = payments.some((p) => p.comensalId === comensal.id);
         
@@ -649,7 +707,7 @@ export default function VaqueroDashboard() {
 
     // Guardar PDF
     doc.save(`Informe_Vaca_${vaca.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-  }, [vaca, subtotal, tip, total, comensales, payments, totalCollected]);
+  }, [vaca, subtotal, tip, tipPercent, tipRate, total, comensales, payments, totalCollected]);
 
   if (loading) {
     return (
@@ -757,6 +815,59 @@ export default function VaqueroDashboard() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Tip percent */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Propina
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Define el porcentaje de propina que usará la app para calcular los totales.
+            Valor por defecto: <b>10%</b>.
+          </p>
+
+          {payments.length > 0 && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                No se puede modificar la propina después de que algún comensal haya pagado.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={handleTipPercentSubmit} className="space-y-3">
+            <div>
+              <label htmlFor="tipPercent" className="block text-sm font-medium text-gray-700 mb-2">
+                Porcentaje de propina
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={tipPercentInputRef}
+                  id="tipPercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={tipPercentInput}
+                  onChange={(e) => setTipPercentInput(e.target.value)}
+                  disabled={payments.length > 0 || submittingTipPercent}
+                  className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-gray-700">%</span>
+                <span className="text-sm text-gray-500">
+                  (actual: <b>{tipPercent}%</b>)
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={payments.length > 0 || submittingTipPercent}
+              className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submittingTipPercent ? 'Guardando...' : 'Guardar porcentaje de propina'}
+            </button>
+          </form>
         </div>
 
         {/* Add Product Form */}
@@ -898,8 +1009,8 @@ export default function VaqueroDashboard() {
                   </p>
                   <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
                     <li>Subtotal: ${((parseFloat(productValue || '0') / comensales.length) * productQuantity).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li>Propina (10%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * 0.1).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * 1.1).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                    <li>Propina ({tipPercent}%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipRate).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                    <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipFactor).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
                   </ul>
                 </div>
               )}
@@ -967,12 +1078,12 @@ export default function VaqueroDashboard() {
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin servicio):</strong> ${Math.round((parseFloat(restaurantBillTotal) / 1.1) - subtotal).toLocaleString('es-CO')}
+                    <strong>Diferencia calculada (sin propina):</strong> ${Math.round((parseFloat(restaurantBillTotal) / tipFactor) - subtotal).toLocaleString('es-CO')}
                     {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / 1.1) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
                     )}
                     <br />
-                    <span className="text-xs">El servicio (10%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">La propina ({tipPercent}%) se agregará automáticamente al calcular los totales</span>
                   </p>
                 </div>
               )}
@@ -1165,7 +1276,7 @@ export default function VaqueroDashboard() {
                 <span>${Math.round(subtotal).toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>Propina (10%):</span>
+                <span>Propina ({tipPercent}%):</span>
                 <span>${Math.round(tip).toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
@@ -1218,12 +1329,12 @@ export default function VaqueroDashboard() {
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin servicio):</strong> ${Math.round((parseFloat(restaurantBillTotal) / 1.1) - subtotal).toLocaleString('es-CO')}
+                    <strong>Diferencia calculada (sin propina):</strong> ${Math.round((parseFloat(restaurantBillTotal) / tipFactor) - subtotal).toLocaleString('es-CO')}
                     {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / 1.1) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
                     )}
                     <br />
-                    <span className="text-xs">El servicio (10%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">La propina ({tipPercent}%) se agregará automáticamente al calcular los totales</span>
                   </p>
                 </div>
               )}
@@ -1272,7 +1383,7 @@ export default function VaqueroDashboard() {
                   (sum, p) => sum + p.valorEnCarta * p.numero,
                   0
                 );
-                const comensalTip = comensalSubtotal * 0.1;
+                const comensalTip = comensalSubtotal * tipRate;
                 const comensalTotal = comensalSubtotal + comensalTip;
 
                 // Check if comensal has paid

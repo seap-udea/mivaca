@@ -314,7 +314,10 @@ export default function ComensalPage() {
     [myProducts]
   );
   
-  const myTip = useMemo(() => mySubtotal * 0.1, [mySubtotal]);
+  const tipPercent = useMemo(() => vaca?.tipPercent ?? 10, [vaca?.tipPercent]);
+  const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
+
+  const myTip = useMemo(() => mySubtotal * tipRate, [mySubtotal, tipRate]);
   const myTotal = useMemo(() => mySubtotal + myTip, [mySubtotal, myTip]);
 
   if (loading) {
@@ -588,7 +591,7 @@ export default function ComensalPage() {
                   <span>${Math.round(mySubtotal).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Propina (10%):</span>
+                  <span>Propina ({tipPercent}%):</span>
                   <span>${Math.round(myTip).toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">

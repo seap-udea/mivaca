@@ -46,10 +46,13 @@ export async function POST(
         );
       }
 
-      // Calculate subtotal from restaurant bill (subtract 10% service)
-      // restaurantBillTotal = subtotal + (subtotal * 0.1) = subtotal * 1.1
-      // Therefore: subtotal = restaurantBillTotal / 1.1
-      const restaurantSubtotal = total / 1.1;
+      const tipRate = (vaca.tipPercent ?? 10) / 100;
+      const tipFactor = 1 + tipRate;
+
+      // Calculate subtotal from restaurant bill (subtract tip/service)
+      // restaurantBillTotal = subtotal + (subtotal * tipRate) = subtotal * (1 + tipRate)
+      // Therefore: subtotal = restaurantBillTotal / (1 + tipRate)
+      const restaurantSubtotal = total / tipFactor;
 
       // Calculate current subtotal from products (without service)
       const currentSubtotal = vaca.products.reduce(
@@ -73,7 +76,7 @@ export async function POST(
         const differencePerComensal = difference / comensales.length;
 
         // Add the difference as a product for each comensal
-        // The service (10%) will be added automatically when calculating totals
+      // The tip will be added automatically when calculating totals
         comensales.forEach((comensal) => {
           store.addProduct(id, {
             producto: 'Diferencia restaurante',
