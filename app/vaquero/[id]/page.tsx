@@ -260,7 +260,7 @@ export default function VaqueroDashboard() {
         }
       } catch (error) {
         console.error('Error uploading QR:', error);
-        alert('Error al subir el QR');
+        alert(tr('Error al subir el QR', 'Error uploading the QR'));
       }
     };
     reader.readAsDataURL(file);
@@ -278,7 +278,7 @@ export default function VaqueroDashboard() {
     e.preventDefault();
     
     if (!brebKeyInput.trim()) {
-      alert('Por favor ingresa la llave de Bre-B');
+      alert(tr('Por favor ingresa la llave de Bre-B', 'Please enter the Bre-B key'));
       return;
     }
 
@@ -298,7 +298,7 @@ export default function VaqueroDashboard() {
       setEditingBrebKey(false);
     } catch (error) {
       console.error('Error saving Bre-B key:', error);
-      alert('Error al guardar la llave de Bre-B');
+      alert(tr('Error al guardar la llave de Bre-B', 'Error saving the Bre-B key'));
     } finally {
       setSubmittingBrebKey(false);
     }
@@ -323,13 +323,13 @@ export default function VaqueroDashboard() {
 
     const trimmedValue = restaurantBillTotal.trim();
     if (!trimmedValue) {
-      alert('Por favor ingresa el valor total de la cuenta del restaurante');
+      alert(tr('Por favor ingresa el valor total de la cuenta del restaurante', 'Please enter the restaurant bill total'));
       return;
     }
     
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
       return;
     }
 
@@ -350,7 +350,7 @@ export default function VaqueroDashboard() {
       }
 
       const data = await response.json();
-      alert('Valor de cuenta del restaurante guardado y diferencia distribuida exitosamente');
+      alert(tr('Valor de cuenta del restaurante guardado y diferencia distribuida exitosamente', 'Restaurant bill saved and difference distributed successfully'));
       // Clear the input field
       setRestaurantBillTotal('');
       await fetchVaca();
@@ -368,7 +368,7 @@ export default function VaqueroDashboard() {
 
       const roundedAmount = Math.round(amount);
       if (!isFinite(roundedAmount) || roundedAmount <= 0) {
-        alert('El total del comensal debe ser mayor a 0 para registrar el pago');
+        alert(tr('El total del comensal debe ser mayor a 0 para registrar el pago', 'The diner total must be greater than 0 to register payment'));
         return;
       }
 
@@ -409,14 +409,14 @@ export default function VaqueroDashboard() {
     async (fromComensalId: string) => {
       const toComensalId = mergeTargetByComensalId[fromComensalId];
       if (!toComensalId) {
-        alert('Selecciona con quién fusionar la cuenta');
+        alert(tr('Selecciona con quién fusionar la cuenta', 'Select who to merge this account into'));
         return;
       }
 
       const from = comensales.find((c) => c.id === fromComensalId);
       const to = comensales.find((c) => c.id === toComensalId);
       if (!from || !to) {
-        alert('Comensal no encontrado');
+        alert(tr('Comensal no encontrado', 'Diner not found'));
         return;
       }
 
@@ -457,19 +457,19 @@ export default function VaqueroDashboard() {
 
     // Check if any comensal has paid
     if (payments.length > 0) {
-      alert('No se puede modificar el porcentaje de propina después de que algún comensal haya pagado');
+      alert(tr('No se puede modificar el porcentaje de propina después de que algún comensal haya pagado', 'You cannot change the tip percentage after any diner has paid'));
       return;
     }
 
     const trimmed = tipPercentInput.trim();
     if (trimmed === '') {
-      alert('Por favor ingresa un porcentaje de propina');
+      alert(tr('Por favor ingresa un porcentaje de propina', 'Please enter a tip percentage'));
       return;
     }
 
     const value = Number(trimmed);
     if (!isFinite(value) || value < 0 || value > 100) {
-      alert('Por favor ingresa un porcentaje válido entre 0 y 100');
+      alert(tr('Por favor ingresa un porcentaje válido entre 0 y 100', 'Please enter a valid percentage between 0 and 100'));
       return;
     }
 
@@ -521,29 +521,29 @@ export default function VaqueroDashboard() {
     e.preventDefault();
     
     if (!productName.trim()) {
-      alert('Por favor ingresa el nombre del producto');
+      alert(tr('Por favor ingresa el nombre del producto', 'Please enter the item name'));
       return;
     }
     
     const trimmedValue = productValue.trim();
     if (!trimmedValue) {
-      alert('Por favor ingresa el valor del producto');
+      alert(tr('Por favor ingresa el valor del producto', 'Please enter the item price'));
       return;
     }
     
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
       return;
     }
     
     if (distributionType === 'single' && selectedComensalIds.length === 0) {
-      alert('Por favor selecciona uno o más comensales');
+      alert(tr('Por favor selecciona uno o más comensales', 'Please select one or more diners'));
       return;
     }
     
     if (distributionType === 'all' && comensales.length === 0) {
-      alert('No hay comensales registrados para distribuir el producto');
+      alert(tr('No hay comensales registrados para distribuir el producto', 'There are no diners to distribute this item'));
       return;
     }
 
@@ -614,7 +614,7 @@ export default function VaqueroDashboard() {
       await fetchVaca();
     } catch (error) {
       console.error('Error adding product:', error);
-      alert('Error al agregar el producto');
+      alert(tr('Error al agregar el producto', 'Error adding the item'));
     } finally {
       setSubmittingProduct(false);
     }
@@ -622,7 +622,7 @@ export default function VaqueroDashboard() {
 
   const handleDeleteProduct = useCallback(async (productId: string, comensalId: string, distributionGroupId?: string) => {
     if (!vacaId) {
-      alert('Error: No se encontró el ID de la vaca. Por favor, recarga la página.');
+      alert(tr('Error: No se encontró el ID de la vaca. Por favor, recarga la página.', 'Error: session ID not found. Please reload the page.'));
       return;
     }
     
@@ -665,7 +665,7 @@ export default function VaqueroDashboard() {
 
         if (!response.ok) {
           if (response.status === 404 && responseData.error?.includes('Vaca not found')) {
-            alert('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.');
+            alert(tr('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.', 'The session seems to have expired. Please reload the page and try again.'));
             window.location.reload();
             return;
           }
@@ -1072,7 +1072,7 @@ export default function VaqueroDashboard() {
         {advancedFeaturesEnabled && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Agregar Producto de Vaquero (colectivo)
+              {tr('Agregar Producto de Vaquero (colectivo)', 'Add host item (shared)')}
             </h2>
             {comensales.length === 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -1389,7 +1389,7 @@ export default function VaqueroDashboard() {
           return (
             <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-               Productos Agregados por el Vaquero (colectivos)
+               {tr('Productos Agregados por el Vaquero (colectivos)', 'Host-added items (shared)')}
               </h2>
               {comensales.length === 0 && (
                 <p className="text-gray-500 text-center py-4">
@@ -1503,7 +1503,7 @@ export default function VaqueroDashboard() {
         {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Totales en app
+              {tr('Totales en app', 'Totals in app')}
             </h2>
             <div className="space-y-2">
               <div className="flex justify-between text-gray-600">
@@ -1600,7 +1600,7 @@ export default function VaqueroDashboard() {
         {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Comensales Registrados
+              {tr('Comensales Registrados', 'Registered diners')}
             </h2>
             <div className="space-y-3">
               {comensales.filter((c) => !c.mergedIntoId).length === 0 ? (
@@ -1711,7 +1711,7 @@ export default function VaqueroDashboard() {
         {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Pagos Recibidos
+              {tr('Pagos Recibidos', 'Payments received')}
             </h2>
             {payments.length > 0 ? (
             <>
@@ -1782,7 +1782,7 @@ export default function VaqueroDashboard() {
         {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Información de Pago
+              {tr('Información de Pago', 'Payment info')}
             </h2>
             <input
               ref={fileInputRef}
@@ -1806,7 +1806,7 @@ export default function VaqueroDashboard() {
                   onClick={handleUploadButtonClick}
                   className="text-sm text-indigo-600 hover:text-indigo-700 mb-4"
                 >
-                  Cambiar QR
+                  {tr('Cambiar QR', 'Change QR')}
                 </button>
               </div>
             ) : (
@@ -1814,14 +1814,14 @@ export default function VaqueroDashboard() {
                 onClick={handleUploadButtonClick}
                 className="w-full py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors mb-4"
               >
-                Subir QR de Pago
+                {tr('Subir QR de Pago', 'Upload payment QR')}
               </button>
             )}
             
             {/* Bre-B Key Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Llave de <span className="bre-b-text">Bre-B</span>
+                {tr('Llave de', 'Bre-B key')} <span className="bre-b-text">Bre-B</span>
               </h3>
               <p className="text-sm text-gray-600 mb-3">
                 Este es un código numérico o alfanumérico usado en Colombia para transferencias entre bancos.
@@ -1917,7 +1917,7 @@ export default function VaqueroDashboard() {
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              Exportar Informe PDF
+              {tr('Exportar Informe PDF', 'Export PDF report')}
             </button>
             <button
               onClick={() => router.push('/')}
@@ -1938,7 +1938,7 @@ export default function VaqueroDashboard() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Nueva Vaca
+              {tr('Nueva Vaca', 'New session')}
             </button>
           </div>
         )}
