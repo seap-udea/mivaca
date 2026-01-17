@@ -15,6 +15,7 @@ export default function VaqueroDashboard() {
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
+  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [total, setTotal] = useState(0);
   const [paymentQR, setPaymentQR] = useState<string>('');
@@ -47,6 +48,29 @@ export default function VaqueroDashboard() {
   const [markingPaidIds, setMarkingPaidIds] = useState<Record<string, boolean>>({});
   const [mergeTargetByComensalId, setMergeTargetByComensalId] = useState<Record<string, string>>({});
   const [mergingIds, setMergingIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = window.localStorage.getItem(`advanced_${vacaId}`);
+      if (stored === '1') setAdvancedFeaturesEnabled(true);
+      if (stored === '0') setAdvancedFeaturesEnabled(false);
+    } catch {
+      // ignore
+    }
+  }, [vacaId]);
+
+  const toggleAdvancedFeatures = useCallback(() => {
+    setAdvancedFeaturesEnabled((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(`advanced_${vacaId}`, next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, [vacaId]);
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -864,35 +888,46 @@ export default function VaqueroDashboard() {
             Creada el {new Date(vaca.createdAt).toLocaleString('es-CO')}
           </p>
           <div className="mt-4 flex justify-center">
-            <a
-              href={tutorialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
-              aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <div className="flex flex-col items-center gap-2">
+              <a
+                href={tutorialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
+                aria-label="Ver video tutorial en YouTube (se abre en una nueva pestaña)"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.26a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Ver video tutorial
-            </a>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.26a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Ver video tutorial
+              </a>
+              <button
+                type="button"
+                onClick={toggleAdvancedFeatures}
+                className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                {advancedFeaturesEnabled
+                  ? 'Desactivar características avanzadas'
+                  : 'Activar caracteristicas avanzadas'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -937,58 +972,60 @@ export default function VaqueroDashboard() {
           </div>
         </div>
 
-        {/* Tip percent */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            Propina
-          </h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Define el porcentaje de propina que usará la app para calcular los totales.
-            Valor por defecto: <b>10%</b>.
-          </p>
+        {/* Tip percent (advanced) */}
+        {advancedFeaturesEnabled && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Propina
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Define el porcentaje de propina que usará la app para calcular los totales.
+              Valor por defecto: <b>10%</b>.
+            </p>
 
-          {payments.length > 0 && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                No se puede modificar la propina después de que algún comensal haya pagado.
-              </p>
-            </div>
-          )}
-
-          <form onSubmit={handleTipPercentSubmit} className="space-y-3">
-            <div>
-              <label htmlFor="tipPercent" className="block text-sm font-medium text-gray-700 mb-2">
-                Porcentaje de propina
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={tipPercentInputRef}
-                  id="tipPercent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={tipPercentInput}
-                  onChange={(e) => setTipPercentInput(e.target.value)}
-                  disabled={payments.length > 0 || submittingTipPercent}
-                  className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <span className="text-gray-700">%</span>
-                <span className="text-sm text-gray-500">
-                  (actual: <b>{tipPercent}%</b>)
-                </span>
+            {payments.length > 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  No se puede modificar la propina después de que algún comensal haya pagado.
+                </p>
               </div>
-            </div>
+            )}
 
-            <button
-              type="submit"
-              disabled={payments.length > 0 || submittingTipPercent}
-              className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submittingTipPercent ? 'Guardando...' : 'Guardar porcentaje de propina'}
-            </button>
-          </form>
-        </div>
+            <form onSubmit={handleTipPercentSubmit} className="space-y-3">
+              <div>
+                <label htmlFor="tipPercent" className="block text-sm font-medium text-gray-700 mb-2">
+                  Porcentaje de propina
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    ref={tipPercentInputRef}
+                    id="tipPercent"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={tipPercentInput}
+                    onChange={(e) => setTipPercentInput(e.target.value)}
+                    disabled={payments.length > 0 || submittingTipPercent}
+                    className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-gray-700">%</span>
+                  <span className="text-sm text-gray-500">
+                    (actual: <b>{tipPercent}%</b>)
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={payments.length > 0 || submittingTipPercent}
+                className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submittingTipPercent ? 'Guardando...' : 'Guardar porcentaje de propina'}
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Products List */}
         {comensales.length > 0 && (
@@ -1023,8 +1060,8 @@ export default function VaqueroDashboard() {
           </div>
         )}
 
-        {/* Add Product Form */}
-        {comensales.length > 0 && (
+        {/* Add Product Form (advanced) */}
+        {advancedFeaturesEnabled && comensales.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Agregar Producto de Vaquero (colectivo)
@@ -1320,8 +1357,8 @@ export default function VaqueroDashboard() {
           </div>
         )}
 
-        {/* My Products - Products Added by Vaquero */}
-        {comensales.length > 0 && (() => {
+        {/* My Products - Products Added by Vaquero (advanced) */}
+        {advancedFeaturesEnabled && comensales.length > 0 && (() => {
           const allGroupedItems = [
             ...groupedVaqueroProducts.groups.map(group => ({ type: 'group' as const, products: group })),
             ...groupedVaqueroProducts.singleProducts.map(product => ({ type: 'single' as const, product }))
@@ -1567,54 +1604,58 @@ export default function VaqueroDashboard() {
                       <p className="text-sm text-gray-600">
                         Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
                       </p>
-                      <div className="mt-2">
-                        <div className="flex flex-nowrap gap-2 items-center">
-                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                            Fusionar con
-                          </span>
-                          <select
-                            value={mergeTargetByComensalId[comensal.id] || ''}
-                            onChange={(e) =>
-                              setMergeTargetByComensalId((prev) => ({
-                                ...prev,
-                                [comensal.id]: e.target.value,
-                              }))
-                            }
-                            className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                          >
-                            <option value="">Selecciona un comensal...</option>
-                            {comensales
-                              .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
-                              .map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => handleMergeComensales(comensal.id)}
-                            disabled={!!mergingIds[comensal.id]}
-                            className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                          >
-                            {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Los productos de este comensal pasarán al comensal elegido.
-                        </p>
-                      </div>
-                      {!hasPaid && comensalTotal > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkTransferred(comensal, comensalTotal)}
-                          disabled={!!markingPaidIds[comensal.id]}
-                          className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                          aria-label={`Marcar como pagado: ${comensal.name}`}
-                          title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
-                        >
-                          {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
-                        </button>
+                      {advancedFeaturesEnabled && (
+                        <>
+                          <div className="mt-2">
+                            <div className="flex flex-nowrap gap-2 items-center">
+                              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                                Fusionar con
+                              </span>
+                              <select
+                                value={mergeTargetByComensalId[comensal.id] || ''}
+                                onChange={(e) =>
+                                  setMergeTargetByComensalId((prev) => ({
+                                    ...prev,
+                                    [comensal.id]: e.target.value,
+                                  }))
+                                }
+                                className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              >
+                                <option value="">Selecciona un comensal...</option>
+                                {comensales
+                                  .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
+                                  .map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleMergeComensales(comensal.id)}
+                                disabled={!!mergingIds[comensal.id]}
+                                className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Los productos de este comensal pasarán al comensal elegido.
+                            </p>
+                          </div>
+                          {!hasPaid && comensalTotal > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkTransferred(comensal, comensalTotal)}
+                              disabled={!!markingPaidIds[comensal.id]}
+                              className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                              aria-label={`Marcar como pagado: ${comensal.name}`}
+                              title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
+                            >
+                              {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="flex items-center">
