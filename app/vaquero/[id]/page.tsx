@@ -1532,6 +1532,10 @@ export default function VaqueroDashboard() {
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
                 Llave de <span className="bre-b-text">Bre-B</span>
               </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Este es un código numérico o alfanumérico usado en Colombia para transferencias entre bancos.
+                Si estás en otro país puedes poner aquí otra información alfanumérica (número de cuenta y banco por ejemplo)
+              </p>
               {brebKey && !editingBrebKey ? (
                 <div className="space-y-3">
                   <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
