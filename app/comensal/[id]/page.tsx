@@ -116,6 +116,22 @@ export default function ComensalPage() {
     }
   }, [vacaId, comensalId]);
 
+  const fetchComensalName = useCallback(async () => {
+    if (!comensalId) return;
+    try {
+      const response = await fetch(`/api/vaca/${vacaId}/comensales`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const found = (data.comensales || []).find((c: { id: string; name: string }) => c.id === comensalId);
+      if (found?.name) {
+        setComensalName(found.name);
+        localStorage.setItem(`comensalName_${vacaId}`, found.name);
+      }
+    } catch (error) {
+      console.error('Error fetching comensal name:', error);
+    }
+  }, [vacaId, comensalId]);
+
   // Celebrate when payment arrives via polling (e.g., marked by vaquero)
   useEffect(() => {
     if (hasPaid && hasPaidCheckedRef.current && !confettiTriggeredRef.current) {
@@ -143,6 +159,7 @@ export default function ComensalPage() {
         setComensalId(data.comensal.id);
         setIsJoined(true);
         localStorage.setItem(`comensal_${vacaId}`, data.comensal.id);
+        localStorage.setItem(`comensalName_${vacaId}`, comensalName.trim());
       }
     } catch (error) {
       console.error('Error joining:', error);
@@ -305,15 +322,24 @@ export default function ComensalPage() {
   useEffect(() => {
     // Check if already joined
     const savedComensalId = localStorage.getItem(`comensal_${vacaId}`);
+    const savedComensalName = localStorage.getItem(`comensalName_${vacaId}`);
     if (savedComensalId) {
       setComensalId(savedComensalId);
       setIsJoined(true);
     }
+    if (savedComensalName && !comensalName) {
+      setComensalName(savedComensalName);
+    }
     fetchVaca();
-  }, [vacaId, fetchVaca]);
+  }, [vacaId, fetchVaca, comensalName]);
 
   useEffect(() => {
     if (!comensalId) return;
+
+    // If we don't have the name (e.g. old sessions), fetch it once
+    if (!comensalName) {
+      fetchComensalName();
+    }
     
     // Poll for updates every 2 seconds
     const interval = setInterval(() => {
@@ -321,7 +347,7 @@ export default function ComensalPage() {
       fetchPayments();
     }, 2000);
     return () => clearInterval(interval);
-  }, [comensalId, fetchVaca, fetchPayments]);
+  }, [comensalId, comensalName, fetchComensalName, fetchVaca, fetchPayments]);
 
   const myProducts = useMemo(
     () => vaca?.products.filter((p) => p.comensalId === comensalId) ?? [],
@@ -678,7 +704,7 @@ export default function ComensalPage() {
                 </p>
                 <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
                   <p className="text-lg font-bold text-indigo-700 text-center">
-                    Tu total a pagar: ${Math.round(myTotal).toLocaleString('es-CO')}
+                    Tu total a pagar ({comensalName || 'Comensal'}): ${Math.round(myTotal).toLocaleString('es-CO')}
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
