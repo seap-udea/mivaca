@@ -1701,7 +1701,7 @@ export default function VaqueroDashboard() {
                     </div>
                   </div>
                 );
-              })}
+              })
               )}
             </div>
           </div>
