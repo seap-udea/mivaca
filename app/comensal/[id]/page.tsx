@@ -466,7 +466,9 @@ export default function ComensalPage() {
           <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
           </h1>
-          <p className="text-gray-600 text-sm">¡A comer se dijo, {comensalName}!</p>
+          <p className="text-gray-600 text-sm text-center">
+            ¡A comer se dijo, {comensalName}!
+          </p>
           <div className="mt-4 flex justify-center">
             <a
               href={tutorialUrl}
