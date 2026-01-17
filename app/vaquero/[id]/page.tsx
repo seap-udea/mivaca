@@ -15,7 +15,8 @@ export default function VaqueroDashboard() {
   const params = useParams();
   const router = useRouter();
   const vacaId = params.id as string;
-  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
+  // Show advanced sections by default so new visitors can preview the app.
+  const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(true);
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [total, setTotal] = useState(0);
   const [paymentQR, setPaymentQR] = useState<string>('');
@@ -1028,7 +1029,7 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Products List */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Productos Agregados por Comensales
@@ -1061,11 +1062,18 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Add Product Form (advanced) */}
-        {advancedFeaturesEnabled && comensales.length > 0 && (
+        {advancedFeaturesEnabled && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Agregar Producto de Vaquero (colectivo)
             </h2>
+            {comensales.length === 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Para usar esta sección, primero debe unirse al menos un comensal (usa el QR de arriba).
+                </p>
+              </div>
+            )}
             {vaca?.restaurantBillTotal && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
@@ -1073,7 +1081,14 @@ export default function VaqueroDashboard() {
                 </p>
               </div>
             )}
-            <form onSubmit={handleAddProduct} className={`space-y-4 ${vaca?.restaurantBillTotal ? 'pointer-events-none opacity-50' : ''}`}>
+            <form
+              onSubmit={handleAddProduct}
+              className={`space-y-4 ${
+                vaca?.restaurantBillTotal || comensales.length === 0
+                  ? 'pointer-events-none opacity-50'
+                  : ''
+              }`}
+            >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1358,7 +1373,7 @@ export default function VaqueroDashboard() {
         )}
 
         {/* My Products - Products Added by Vaquero (advanced) */}
-        {advancedFeaturesEnabled && comensales.length > 0 && (() => {
+        {advancedFeaturesEnabled && (() => {
           const allGroupedItems = [
             ...groupedVaqueroProducts.groups.map(group => ({ type: 'group' as const, products: group })),
             ...groupedVaqueroProducts.singleProducts.map(product => ({ type: 'single' as const, product }))
@@ -1369,6 +1384,11 @@ export default function VaqueroDashboard() {
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
                Productos Agregados por el Vaquero (colectivos)
               </h2>
+              {comensales.length === 0 && (
+                <p className="text-gray-500 text-center py-4">
+                  Aquí aparecerán los productos colectivos del vaquero (después de que se unan comensales).
+                </p>
+              )}
               {allGroupedItems.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">
                   Aún no has agregado productos
@@ -1473,7 +1493,7 @@ export default function VaqueroDashboard() {
         })()}
 
         {/* Total */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Totales en app
@@ -1496,11 +1516,18 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Restaurant Bill Total Form - Cerrar cuenta de la vaca */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Cerrar cuenta de la vaca
             </h2>
+            {comensales.length === 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Para cerrar la cuenta y distribuir diferencias, primero debe unirse al menos un comensal.
+                </p>
+              </div>
+            )}
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
@@ -1550,7 +1577,7 @@ export default function VaqueroDashboard() {
             </div>
             <button
               type="submit"
-              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
               className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={
                 vaca?.restaurantBillTotal 
@@ -1570,13 +1597,18 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Comensales List */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Comensales Registrados
             </h2>
             <div className="space-y-3">
-              {comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
+              {comensales.filter((c) => !c.mergedIntoId).length === 0 ? (
+                <p className="text-gray-500 text-center py-6">
+                  Aún no hay comensales registrados. Comparte el QR para que se unan.
+                </p>
+              ) : (
+              comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
                 // Calculate total for this comensal
                 const comensalProducts = vaca.products.filter(
                   (p) => p.comensalId === comensal.id
@@ -1670,12 +1702,13 @@ export default function VaqueroDashboard() {
                   </div>
                 );
               })}
+              )}
             </div>
           </div>
         )}
 
         {/* Payments List */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Pagos Recibidos
@@ -1746,7 +1779,7 @@ export default function VaqueroDashboard() {
         )}
 
         {/* Payment QR - Información de Pago */}
-        {comensales.length > 0 && (
+        {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Información de Pago
