@@ -22,6 +22,18 @@ export default function VaqueroDashboard() {
   }, []);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
+  const moneyFormatter = useMemo(() => {
+    const locale = isEn ? 'en-GB' : 'es-CO';
+    const fractionDigits = isEn ? 2 : 0;
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+  }, [isEn]);
+  const formatMoney = useCallback(
+    (value: number) => `$${moneyFormatter.format(Number.isFinite(value) ? value : 0)}`,
+    [moneyFormatter]
+  );
   // Advanced features are off by default; user can enable them from the UI.
   const [advancedFeaturesEnabled, setAdvancedFeaturesEnabled] = useState(false);
   const [vaca, setVaca] = useState<Vaca | null>(null);
@@ -369,13 +381,20 @@ export default function VaqueroDashboard() {
     async (comensal: Comensal, amount: number) => {
       if (!vacaId) return;
 
-      const roundedAmount = Math.round(amount);
-      if (!isFinite(roundedAmount) || roundedAmount <= 0) {
+      const amountToSend = isEn ? amount : Math.round(amount);
+      if (!isFinite(amountToSend) || amountToSend <= 0) {
         alert(tr('El total del comensal debe ser mayor a 0 para registrar el pago', 'The diner total must be greater than 0 to register payment'));
         return;
       }
 
-      if (!confirm(`¿Marcar como pagado a "${comensal.name}" por $${roundedAmount.toLocaleString('es-CO')}?`)) {
+      if (
+        !confirm(
+          tr(
+            `¿Marcar como pagado a "${comensal.name}" por ${formatMoney(amountToSend)}?`,
+            `Mark "${comensal.name}" as paid for ${formatMoney(amountToSend)}?`
+          )
+        )
+      ) {
         return;
       }
 
@@ -387,7 +406,7 @@ export default function VaqueroDashboard() {
           body: JSON.stringify({
             comensalId: comensal.id,
             consignadorName: comensal.name,
-            amount: roundedAmount,
+            amount: amountToSend,
           }),
         });
 
@@ -716,7 +735,7 @@ export default function VaqueroDashboard() {
     // Información de la vaca
     doc.setFontSize(12);
     doc.text(`Nombre: ${vaca.name}`, 14, 30);
-    doc.text(`Fecha: ${new Date(vaca.createdAt).toLocaleString('es-CO')}`, 14, 37);
+    doc.text(`Fecha: ${new Date(vaca.createdAt).toLocaleString(isEn ? 'en-GB' : 'es-CO')}`, 14, 37);
     
     let yPosition = 47;
 
@@ -730,8 +749,8 @@ export default function VaqueroDashboard() {
         p.producto,
         p.comensalName || 'N/A',
         p.numero.toString(),
-        `$${Math.round(p.valorEnCarta).toLocaleString('es-CO')}`,
-        `$${Math.round(p.valorEnCarta * p.numero).toLocaleString('es-CO')}`,
+        `${formatMoney(p.valorEnCarta)}`,
+        `${formatMoney(p.valorEnCarta * p.numero)}`,
       ]);
 
       autoTable(doc, {
@@ -747,13 +766,13 @@ export default function VaqueroDashboard() {
 
     // Totales
     doc.setFontSize(12);
-    doc.text(`Subtotal: $${Math.round(subtotal).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Subtotal: ${formatMoney(subtotal)}`, 14, yPosition);
     yPosition += 7;
-    doc.text(`Propina (${tipPercent}%): $${Math.round(tip).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Propina (${tipPercent}%): ${formatMoney(tip)}`, 14, yPosition);
     yPosition += 7;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Total: $${Math.round(total).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total: ${formatMoney(total)}`, 14, yPosition);
     doc.setFont('helvetica', 'normal');
     yPosition += 12;
 
@@ -775,7 +794,7 @@ export default function VaqueroDashboard() {
         
         return [
           comensal.name,
-          `$${Math.round(comensalTotal).toLocaleString('es-CO')}`,
+          `${formatMoney(comensalTotal)}`,
           hasPaid ? 'Pagado' : 'Pendiente',
         ];
       });
@@ -812,8 +831,8 @@ export default function VaqueroDashboard() {
         return [
           comensal?.name || 'N/A',
           p.consignadorName,
-          `$${Math.round(p.amount).toLocaleString('es-CO')}`,
-          new Date(p.paidAt).toLocaleString('es-CO'),
+          `${formatMoney(p.amount)}`,
+          new Date(p.paidAt).toLocaleString(isEn ? 'en-GB' : 'es-CO'),
         ];
       });
 
@@ -830,9 +849,9 @@ export default function VaqueroDashboard() {
 
     // Resumen de pagos
     doc.setFontSize(12);
-    doc.text(`Total Recaudado: $${Math.round(totalCollected).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total Recaudado: ${formatMoney(totalCollected)}`, 14, yPosition);
     yPosition += 7;
-    doc.text(`Total Esperado: $${Math.round(total).toLocaleString('es-CO')}`, 14, yPosition);
+    doc.text(`Total Esperado: ${formatMoney(total)}`, 14, yPosition);
     yPosition += 7;
     
     if (totalCollected >= total) {
@@ -841,7 +860,7 @@ export default function VaqueroDashboard() {
     } else {
       doc.setTextColor(220, 38, 38); // red-600
       const pending = total - totalCollected;
-      doc.text(`Pendiente: $${Math.round(pending).toLocaleString('es-CO')}`, 14, yPosition);
+      doc.text(`Pendiente: ${formatMoney(pending)}`, 14, yPosition);
     }
     doc.setTextColor(0, 0, 0); // Reset to black
 
@@ -851,7 +870,7 @@ export default function VaqueroDashboard() {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(
-        `Página ${i} de ${pageCount} - Generado el ${new Date().toLocaleString('es-CO')}`,
+        `Página ${i} de ${pageCount} - Generado el ${new Date().toLocaleString(isEn ? 'en-GB' : 'es-CO')}`,
         14,
         doc.internal.pageSize.height - 10
       );
@@ -1070,7 +1089,7 @@ export default function VaqueroDashboard() {
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-gray-800">
-                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                      {formatMoney(product.valorEnCarta * product.numero)}
                     </p>
                   </div>
                 ))}
@@ -1135,7 +1154,7 @@ export default function VaqueroDashboard() {
                     value={productValue}
                     onChange={(e) => setProductValue(e.target.value)}
                     min="0"
-                    step="1"
+                    step={isEn ? '0.01' : '1'}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!!vaca?.restaurantBillTotal}
                     required
@@ -1346,18 +1365,24 @@ export default function VaqueroDashboard() {
               </p>
               {vaca?.restaurantBillTotal && (
                 <p className="text-xs text-gray-600 mt-1 font-medium">
-                  Valor actual: ${Math.round(vaca?.restaurantBillTotal || 0).toLocaleString('es-CO')}
+                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
                 </p>
               )}
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin propina):</strong> ${Math.round((parseFloat(restaurantBillTotal) / tipFactor) - subtotal).toLocaleString('es-CO')}
+                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
                     {comensales.length > 0 && (
-                      <> ({comensales.length} comensal{comensales.length !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length).toLocaleString('es-CO')} cada uno)</>
+                      <> ({comensales.length} {tr('comensal', 'diner')}{comensales.length !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length)} {tr('cada uno', 'each')})</>
                     )}
                     <br />
-                    <span className="text-xs">La propina ({tipPercent}%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">
+                      {tr(
+                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                      )}
+                    </span>
                   </p>
                 </div>
               )}
@@ -1433,7 +1458,7 @@ export default function VaqueroDashboard() {
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-semibold text-gray-800">
-                              ${Math.round(totalValue).toLocaleString('es-CO')}
+                              {formatMoney(totalValue)}
                             </p>
                             <button
                               onClick={() => handleDeleteProduct(firstProduct.id, firstProduct.comensalId, firstProduct.distributionGroupId)}
@@ -1475,7 +1500,7 @@ export default function VaqueroDashboard() {
                           </div>
                           <div className="flex items-center gap-3">
                             <p className="text-lg font-semibold text-gray-800">
-                              ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                              {formatMoney(product.valorEnCarta * product.numero)}
                             </p>
                             <button
                               onClick={() => handleDeleteProduct(product.id, product.comensalId)}
@@ -1519,17 +1544,17 @@ export default function VaqueroDashboard() {
             <div className="space-y-2">
               <div className="flex justify-between text-gray-600">
                 <span>{tr('Subtotal', 'Subtotal')}:</span>
-                <span>${Math.round(subtotal).toLocaleString('es-CO')}</span>
+                <span>{formatMoney(subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>
                   {tr('Propina', 'Tip')} ({tipPercent}%):
                 </span>
-                <span>${Math.round(tip).toLocaleString('es-CO')}</span>
+                <span>{formatMoney(tip)}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
                 <span>{tr('Total', 'Total')}:</span>
-                <span>${Math.round(total).toLocaleString('es-CO')}</span>
+                <span>{formatMoney(total)}</span>
               </div>
             </div>
           </div>
@@ -1561,7 +1586,7 @@ export default function VaqueroDashboard() {
                 value={restaurantBillTotal}
                 onChange={(e) => setRestaurantBillTotal(e.target.value)}
                 min="0"
-                step="1"
+                step={isEn ? '0.01' : '1'}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Ej: 150000"
                 disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
@@ -1572,18 +1597,24 @@ export default function VaqueroDashboard() {
               </p>
               {vaca?.restaurantBillTotal && (
                 <p className="text-xs text-gray-600 mt-1 font-medium">
-                  Valor actual: ${Math.round(vaca?.restaurantBillTotal || 0).toLocaleString('es-CO')}
+                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
                 </p>
               )}
               {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Diferencia calculada (sin propina):</strong> ${Math.round((parseFloat(restaurantBillTotal) / tipFactor) - subtotal).toLocaleString('es-CO')}
+                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
                     {unpaidComensalesCount > 0 && (
-                      <> ({unpaidComensalesCount} comensal{unpaidComensalesCount !== 1 ? 'es' : ''} × ${Math.round(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount).toLocaleString('es-CO')} cada uno)</>
+                      <> ({unpaidComensalesCount} {tr('comensal', 'diner')}{unpaidComensalesCount !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount)} {tr('cada uno', 'each')})</>
                     )}
                     <br />
-                    <span className="text-xs">La propina ({tipPercent}%) se agregará automáticamente al calcular los totales</span>
+                    <span className="text-xs">
+                      {tr(
+                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                      )}
+                    </span>
                   </p>
                 </div>
               )}
@@ -1647,7 +1678,8 @@ export default function VaqueroDashboard() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-800">{comensal.name}</p>
                       <p className="text-sm text-gray-600">
-                        Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
+                        {tr('Se unió el', 'Joined on')}{' '}
+                        {new Date(comensal.joinedAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
                       </p>
                       {advancedFeaturesEnabled && (
                         <>
@@ -1709,7 +1741,7 @@ export default function VaqueroDashboard() {
                           hasPaid ? 'text-green-600' : 'text-red-600'
                         }`}
                       >
-                        ${Math.round(comensalTotal).toLocaleString('es-CO')}
+                        {formatMoney(comensalTotal)}
                       </p>
                     </div>
                   </div>
@@ -1740,11 +1772,12 @@ export default function VaqueroDashboard() {
                       </p>
                       <p className="text-sm text-gray-600">
                         Consignó: {payment.consignadorName} ·{' '}
-                        Pagado el {new Date(payment.paidAt as string | Date).toLocaleString('es-CO')}
+                        {tr('Pagado el', 'Paid on')}{' '}
+                        {new Date(payment.paidAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-green-700">
-                      ${Math.round(payment.amount).toLocaleString('es-CO')}
+                      {formatMoney(payment.amount)}
                     </p>
                   </div>
                 ))}
@@ -1759,12 +1792,12 @@ export default function VaqueroDashboard() {
                         ? 'text-red-600' 
                         : 'text-green-700'
                   }>
-                    ${Math.round(totalCollected).toLocaleString('es-CO')}
+                    {formatMoney(totalCollected)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 mt-2">
                   <span>Total Esperado:</span>
-                  <span>${Math.round(total).toLocaleString('es-CO')}</span>
+                  <span>{formatMoney(total)}</span>
                 </div>
                 {totalCollectedRounded > totalRounded && (
                   <p className="text-sm text-violet-600 font-medium mt-2">
@@ -1778,7 +1811,7 @@ export default function VaqueroDashboard() {
                 )}
                 {totalCollectedRounded < totalRounded && (
                   <p className="text-sm text-red-600 font-medium mt-2">
-                    Pendiente: ${Math.round(totalRounded - totalCollectedRounded).toLocaleString('es-CO')}
+                    {tr('Pendiente', 'Pending')}: {formatMoney(totalRounded - totalCollectedRounded)}
                   </p>
                 )}
               </div>
