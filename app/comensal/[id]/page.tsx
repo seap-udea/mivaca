@@ -704,7 +704,7 @@ export default function ComensalPage() {
                 </p>
                 <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
                   <p className="text-lg font-bold text-indigo-700 text-center">
-                    Tu total a pagar ({comensalName || 'Comensal'}): ${Math.round(myTotal).toLocaleString('es-CO')}
+                    Tu total a pagar {comensalName || 'Comensal'}: ${Math.round(myTotal).toLocaleString('es-CO')}
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
