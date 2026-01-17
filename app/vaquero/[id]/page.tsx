@@ -1790,7 +1790,7 @@ export default function VaqueroDashboard() {
                         {(comensales.find((c) => c.id === payment.comensalId)?.name) || 'Comensal'}
                       </p>
                       <p className="text-sm text-gray-600">
-                        Consignó: {payment.consignadorName} ·{' '}
+                        {tr('Consignó', 'Paid by')}: {payment.consignadorName} ·{' '}
                         {tr('Pagado el', 'Paid on')}{' '}
                         {new Date(payment.paidAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
                       </p>
@@ -1803,7 +1803,7 @@ export default function VaqueroDashboard() {
               </div>
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between text-xl font-bold text-gray-800">
-                  <span>Total Recaudado:</span>
+                  <span>{tr('Total Recaudado', 'Total collected')}:</span>
                   <span className={
                     totalCollectedRounded > totalRounded 
                       ? 'text-violet-600' 
@@ -1815,17 +1815,20 @@ export default function VaqueroDashboard() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 mt-2">
-                  <span>Total Esperado:</span>
+                  <span>{tr('Total Esperado', 'Expected total')}:</span>
                   <span>{formatMoney(total)}</span>
                 </div>
                 {totalCollectedRounded > totalRounded && (
                   <p className="text-sm text-violet-600 font-medium mt-2">
-                    ⚠ Se ha recibido más del total esperado
+                    {tr(
+                      '⚠ Se ha recibido más del total esperado',
+                      '⚠ Collected more than expected'
+                    )}
                   </p>
                 )}
                 {totalCollectedRounded === totalRounded && (
                   <p className="text-sm text-green-600 font-medium mt-2">
-                    ✓ Todos los pagos han sido recibidos
+                    {tr('✓ Todos los pagos han sido recibidos', '✓ All payments have been received')}
                   </p>
                 )}
                 {totalCollectedRounded < totalRounded && (
@@ -1837,7 +1840,7 @@ export default function VaqueroDashboard() {
             </>
           ) : (
             <p className="text-gray-500 text-center py-8">
-              Aún no se han registrado pagos
+              {tr('Aún no se han registrado pagos', 'No payments recorded yet')}
             </p>
           )}
           </div>
