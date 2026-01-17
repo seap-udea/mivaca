@@ -31,6 +31,7 @@ export default function ComensalPage() {
   const [hasPaid, setHasPaid] = useState(false);
   const confettiTriggeredRef = useRef(false);
   const hasPaidCheckedRef = useRef(false);
+  const mergeNotifiedRef = useRef(false);
   const restaurantAds = useMemo(() => getRandomActiveAds(1), []);
 
   const launchConfetti = useCallback(() => {
@@ -116,19 +117,35 @@ export default function ComensalPage() {
     }
   }, [vacaId, comensalId]);
 
-  const fetchComensalName = useCallback(async () => {
+  const fetchComensalInfo = useCallback(async () => {
     if (!comensalId) return;
     try {
       const response = await fetch(`/api/vaca/${vacaId}/comensales`);
       if (!response.ok) return;
       const data = await response.json();
-      const found = (data.comensales || []).find((c: { id: string; name: string }) => c.id === comensalId);
+      const found = (data.comensales || []).find(
+        (c: { id: string; name: string; mergedIntoId?: string }) => c.id === comensalId
+      );
+      if (found?.mergedIntoId) {
+        // This comensal was merged into another; reset session
+        if (!mergeNotifiedRef.current) {
+          mergeNotifiedRef.current = true;
+          alert('Tu cuenta fue fusionada por el vaquero. La sesión se reiniciará.');
+        }
+        localStorage.removeItem(`comensal_${vacaId}`);
+        localStorage.removeItem(`comensalName_${vacaId}`);
+        setIsJoined(false);
+        setComensalId('');
+        setHasPaid(false);
+        setProducts([{ producto: '', valorEnCarta: 0, numero: 1 }]);
+        return;
+      }
       if (found?.name) {
         setComensalName(found.name);
         localStorage.setItem(`comensalName_${vacaId}`, found.name);
       }
     } catch (error) {
-      console.error('Error fetching comensal name:', error);
+      console.error('Error fetching comensal info:', error);
     }
   }, [vacaId, comensalId]);
 
@@ -337,17 +354,16 @@ export default function ComensalPage() {
     if (!comensalId) return;
 
     // If we don't have the name (e.g. old sessions), fetch it once
-    if (!comensalName) {
-      fetchComensalName();
-    }
+    fetchComensalInfo();
     
     // Poll for updates every 2 seconds
     const interval = setInterval(() => {
       fetchVaca();
       fetchPayments();
+      fetchComensalInfo();
     }, 2000);
     return () => clearInterval(interval);
-  }, [comensalId, comensalName, fetchComensalName, fetchVaca, fetchPayments]);
+  }, [comensalId, fetchComensalInfo, fetchVaca, fetchPayments]);
 
   const myProducts = useMemo(
     () => vaca?.products.filter((p) => p.comensalId === comensalId) ?? [],

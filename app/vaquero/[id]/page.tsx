@@ -45,6 +45,8 @@ export default function VaqueroDashboard() {
   const confettiTriggeredRef = useRef(false);
   const [vaqueroId, setVaqueroId] = useState<string>('');
   const [markingPaidIds, setMarkingPaidIds] = useState<Record<string, boolean>>({});
+  const [mergeTargetByComensalId, setMergeTargetByComensalId] = useState<Record<string, string>>({});
+  const [mergingIds, setMergingIds] = useState<Record<string, boolean>>({});
 
   const fetchVaca = useCallback(async () => {
     try {
@@ -372,6 +374,53 @@ export default function VaqueroDashboard() {
       }
     },
     [vacaId, fetchPayments, fetchVaca]
+  );
+
+  const handleMergeComensales = useCallback(
+    async (fromComensalId: string) => {
+      const toComensalId = mergeTargetByComensalId[fromComensalId];
+      if (!toComensalId) {
+        alert('Selecciona con quién fusionar la cuenta');
+        return;
+      }
+
+      const from = comensales.find((c) => c.id === fromComensalId);
+      const to = comensales.find((c) => c.id === toComensalId);
+      if (!from || !to) {
+        alert('Comensal no encontrado');
+        return;
+      }
+
+      if (!confirm(`¿Fusionar la cuenta de "${from.name}" con "${to.name}"?\n\nLos productos de "${from.name}" pasarán a "${to.name}" y la sesión del comensal fusionado se reiniciará.`)) {
+        return;
+      }
+
+      setMergingIds((prev) => ({ ...prev, [fromComensalId]: true }));
+      try {
+        const response = await fetch(`/api/vaca/${vacaId}/merge-comensal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fromComensalId, toComensalId }),
+        });
+
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(responseData.error || 'No se pudo fusionar la cuenta');
+        }
+
+        // Clear selection and refresh
+        setMergeTargetByComensalId((prev) => ({ ...prev, [fromComensalId]: '' }));
+        await fetchVaca();
+        await fetchComensales();
+        await fetchPayments();
+      } catch (error) {
+        console.error('Error merging comensales:', error);
+        alert(error instanceof Error ? error.message : 'Error al fusionar la cuenta');
+      } finally {
+        setMergingIds((prev) => ({ ...prev, [fromComensalId]: false }));
+      }
+    },
+    [vacaId, mergeTargetByComensalId, comensales, fetchVaca, fetchComensales, fetchPayments]
   );
 
   const handleTipPercentSubmit = useCallback(async (e: React.FormEvent) => {
@@ -1490,7 +1539,7 @@ export default function VaqueroDashboard() {
               Comensales Registrados
             </h2>
             <div className="space-y-3">
-              {comensales.map((comensal) => {
+              {comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
                 // Calculate total for this comensal
                 const comensalProducts = vaca.products.filter(
                   (p) => p.comensalId === comensal.id
@@ -1518,6 +1567,43 @@ export default function VaqueroDashboard() {
                       <p className="text-sm text-gray-600">
                         Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
                       </p>
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Fusionar cuenta con
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          <select
+                            value={mergeTargetByComensalId[comensal.id] || ''}
+                            onChange={(e) =>
+                              setMergeTargetByComensalId((prev) => ({
+                                ...prev,
+                                [comensal.id]: e.target.value,
+                              }))
+                            }
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          >
+                            <option value="">Selecciona un comensal...</option>
+                            {comensales
+                              .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleMergeComensales(comensal.id)}
+                            disabled={!!mergingIds[comensal.id]}
+                            className="px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Los productos de este comensal pasarán al comensal elegido.
+                        </p>
+                      </div>
                       {!hasPaid && comensalTotal > 0 && (
                         <button
                           type="button"

@@ -29,6 +29,8 @@ export interface Comensal {
   name: string;
   vacaId: string;
   joinedAt: Date;
+  mergedIntoId?: string; // Si existe, esta cuenta fue fusionada con otro comensal
+  mergedAt?: Date;
 }
 
 export interface Payment {

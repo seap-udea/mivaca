@@ -152,6 +152,48 @@ class VacaStore {
     );
   }
 
+  mergeComensalAccounts(vacaId: string, fromComensalId: string, toComensalId: string): void {
+    if (fromComensalId === toComensalId) {
+      throw new Error('Cannot merge a comensal into itself');
+    }
+
+    const vaca = this.vacas.get(vacaId);
+    if (!vaca) {
+      throw new Error('Vaca not found');
+    }
+
+    const from = this.comensales.get(fromComensalId);
+    const to = this.comensales.get(toComensalId);
+    if (!from || !to) {
+      throw new Error('Comensal not found');
+    }
+    if (from.vacaId !== vacaId || to.vacaId !== vacaId) {
+      throw new Error('Comensales must belong to the same vaca');
+    }
+    if (from.mergedIntoId) {
+      throw new Error('Source comensal is already merged');
+    }
+    if (to.mergedIntoId) {
+      throw new Error('Target comensal is merged and cannot receive accounts');
+    }
+
+    // Move products
+    vaca.products = vaca.products.map((p) => {
+      if (p.comensalId !== fromComensalId) return p;
+      return {
+        ...p,
+        comensalId: toComensalId,
+        comensalName: to.name,
+      };
+    });
+    this.vacas.set(vacaId, vaca);
+
+    // Mark source as merged
+    from.mergedIntoId = toComensalId;
+    from.mergedAt = new Date();
+    this.comensales.set(fromComensalId, from);
+  }
+
   addPayment(vacaId: string, comensalId: string, consignadorName: string, amount: number): Payment {
     const payment: Payment = {
       id: uuidv4(),
@@ -189,7 +231,8 @@ if (process.env.NODE_ENV !== 'production') {
       typeof globalThis.__vacaStore.addPayment !== 'function' ||
       typeof globalThis.__vacaStore.setBreBKey !== 'function' ||
       typeof globalThis.__vacaStore.setRestaurantBillTotal !== 'function' ||
-      typeof globalThis.__vacaStore.setTipPercent !== 'function') {
+      typeof globalThis.__vacaStore.setTipPercent !== 'function' ||
+      typeof globalThis.__vacaStore.mergeComensalAccounts !== 'function') {
     globalThis.__vacaStore = new VacaStore();
   }
   storeInstance = globalThis.__vacaStore;
