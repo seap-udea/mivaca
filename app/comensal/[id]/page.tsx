@@ -7,11 +7,15 @@ import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
 import RestaurantBanner from '@/components/RestaurantBanner';
 import { getRandomActiveAds } from '@/lib/restaurantAds';
+import { getClientLang } from '@/lib/langClient';
 
 export default function ComensalPage() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const vacaId = params.id as string;
+  const lang = useMemo(() => getClientLang(), []);
+  const isEn = lang === 'en';
+  const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [comensalName, setComensalName] = useState('');
   const [comensalId, setComensalId] = useState('');
@@ -130,7 +134,12 @@ export default function ComensalPage() {
         // This comensal was merged into another; reset session
         if (!mergeNotifiedRef.current) {
           mergeNotifiedRef.current = true;
-          alert('Tu cuenta fue fusionada por el vaquero. La sesión se reiniciará.');
+          alert(
+            tr(
+              'Tu cuenta fue fusionada por el vaquero. La sesión se reiniciará.',
+              'Your account was merged by the host. The session will restart.'
+            )
+          );
         }
         localStorage.removeItem(`comensal_${vacaId}`);
         localStorage.removeItem(`comensalName_${vacaId}`);
@@ -180,9 +189,9 @@ export default function ComensalPage() {
       }
     } catch (error) {
       console.error('Error joining:', error);
-      alert('Error al unirse a la vaca');
+      alert(tr('Error al unirse a la vaca', 'Error joining the session'));
     }
-  }, [vacaId, comensalName]);
+  }, [vacaId, comensalName, tr]);
 
   const addProductField = useCallback(() => {
     setProducts((prev) => [...prev, { producto: '', valorEnCarta: 0, numero: 1 }]);
@@ -225,24 +234,34 @@ export default function ComensalPage() {
       setProducts([{ producto: '', valorEnCarta: 0, numero: 1 }]);
     } catch (error) {
       console.error('Error adding products:', error);
-      alert('Error al agregar productos');
+      alert(tr('Error al agregar productos', 'Error adding products'));
     } finally {
       setSubmitting(false);
     }
-  }, [vacaId, comensalId, comensalName, products]);
+  }, [vacaId, comensalId, comensalName, products, tr]);
 
   const handleDeleteProduct = useCallback(async (productId: string) => {
     if (!comensalId) {
-      alert('Error: No se encontró tu ID de comensal. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró tu ID de comensal. Por favor, recarga la página.',
+          'Error: your diner ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
     if (!vacaId) {
-      alert('Error: No se encontró el ID de la vaca. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró el ID de la vaca. Por favor, recarga la página.',
+          'Error: the session ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
-    if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+    if (!confirm(tr('¿Estás seguro de que quieres eliminar este producto?', 'Are you sure you want to delete this item?'))) {
       return;
     }
 
@@ -258,7 +277,12 @@ export default function ComensalPage() {
       if (!response.ok) {
         // If vaca not found, suggest refreshing
         if (response.status === 404 && responseData.error?.includes('Vaca not found')) {
-          alert('La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.');
+          alert(
+            tr(
+              'La sesión parece haber expirado. Por favor, recarga la página y vuelve a intentar.',
+              'The session seems to have expired. Please reload the page and try again.'
+            )
+          );
           // Optionally refresh the page
           window.location.reload();
           return;
@@ -270,33 +294,38 @@ export default function ComensalPage() {
       await fetchVaca();
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert(error instanceof Error ? error.message : 'Error al eliminar el producto');
+      alert(error instanceof Error ? error.message : tr('Error al eliminar el producto', 'Error deleting the item'));
     }
-  }, [vacaId, comensalId, fetchVaca]);
+  }, [vacaId, comensalId, fetchVaca, tr]);
 
   const handleSubmitPayment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!comensalId) {
-      alert('Error: No se encontró tu ID de comensal. Por favor, recarga la página.');
+      alert(
+        tr(
+          'Error: No se encontró tu ID de comensal. Por favor, recarga la página.',
+          'Error: your diner ID was not found. Please reload the page.'
+        )
+      );
       return;
     }
     
     if (!consignadorName.trim()) {
-      alert('Por favor ingresa el nombre de quién consigna');
+      alert(tr('Por favor ingresa el nombre de quién consigna', 'Please enter the payer name'));
       return;
     }
     
     // Improved validation: trim and parse the amount
     const trimmedAmount = paymentAmount.trim();
     if (!trimmedAmount) {
-      alert('Por favor ingresa el valor pagado');
+      alert(tr('Por favor ingresa el valor pagado', 'Please enter the paid amount'));
       return;
     }
     
     const amountValue = parseFloat(trimmedAmount);
     if (isNaN(amountValue) || amountValue <= 0 || !isFinite(amountValue)) {
-      alert('Por favor ingresa un valor válido mayor a 0');
+      alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid amount greater than 0'));
       return;
     }
 
@@ -330,11 +359,11 @@ export default function ComensalPage() {
       fetchPayments();
     } catch (error) {
       console.error('Error submitting payment:', error);
-      alert(error instanceof Error ? error.message : 'Error al registrar el pago');
+      alert(error instanceof Error ? error.message : tr('Error al registrar el pago', 'Error registering payment'));
     } finally {
       setSubmittingPayment(false);
     }
-  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments, launchConfetti]);
+  }, [vacaId, comensalId, consignadorName, paymentAmount, fetchVaca, fetchPayments, launchConfetti, tr]);
 
   useEffect(() => {
     // Check if already joined
@@ -384,7 +413,7 @@ export default function ComensalPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-gray-600">Cargando...</div>
+        <div className="text-gray-600">{tr('Cargando...', 'Loading...')}</div>
       </div>
     );
   }
@@ -392,7 +421,7 @@ export default function ComensalPage() {
   if (!vaca) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-red-600">Vaca no encontrada</div>
+        <div className="text-red-600">{tr('Vaca no encontrada', 'Session not found')}</div>
       </div>
     );
   }
@@ -412,7 +441,7 @@ export default function ComensalPage() {
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-            Unirse a la Vaca
+            {tr('Unirse a la Vaca', 'Join the session')}
           </h1>
           <p className="text-gray-600 text-center mb-6">
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
@@ -421,7 +450,7 @@ export default function ComensalPage() {
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label htmlFor="comensalName" className="block text-sm font-medium text-gray-700 mb-2">
-                Tu Nombre
+                {tr('Tu Nombre', 'Your name')}
               </label>
               <input
                 id="comensalName"
@@ -432,7 +461,7 @@ export default function ComensalPage() {
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Ej. Juan Pérez
+                {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
               </p>
             </div>
             
@@ -441,7 +470,7 @@ export default function ComensalPage() {
               className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
               aria-label="Unirse a la vaca"
             >
-              Unirse
+              {tr('Unirse', 'Join')}
             </button>
           </form>
         </div>
@@ -505,14 +534,14 @@ export default function ComensalPage() {
         {/* Add Products Form */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Agregar Productos
+            {tr('Agregar Productos', 'Add items')}
           </h2>
           {(hasPaid || vaca?.restaurantBillTotal) && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
                 {hasPaid 
-                  ? 'Ya has realizado tu pago. No puedes agregar más productos.'
-                  : 'El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.'}
+                  ? tr('Ya has realizado tu pago. No puedes agregar más productos.', "You've already paid. You can't add more items.")
+                  : tr('El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.', 'The restaurant bill total has been set. No more items can be added.')}
               </p>
             </div>
           )}
@@ -581,7 +610,7 @@ export default function ComensalPage() {
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Agregar otro producto"
               >
-                + Agregar Otro
+                {tr('+ Agregar Otro', '+ Add another')}
               </button>
               <button
                 type="submit"
@@ -589,7 +618,7 @@ export default function ComensalPage() {
                 className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Agregar productos"
               >
-                {submitting ? 'Agregando...' : 'Agregar Productos'}
+                {submitting ? tr('Agregando...', 'Adding...') : tr('Agregar Productos', 'Add items')}
               </button>
             </div>
           </form>
@@ -707,22 +736,22 @@ export default function ComensalPage() {
         {(vaca.paymentQRCode || vaca.brebKey) && myTotal > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Registrar Pago
+              {tr('Registrar Pago', 'Register payment')}
             </h2>
             {hasPaid ? (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800 font-medium">
-                  ✓ Ya has registrado tu pago
+                  {tr('✓ Ya has registrado tu pago', '✓ Your payment is registered')}
                 </p>
               </div>
             ) : (
               <>
                 <p className="text-sm text-gray-600 mb-4">
-                  Indica que ya realizaste el pago:
+                  {tr('Indica que ya realizaste el pago:', 'Confirm that you have paid:')}
                 </p>
                 <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
                   <p className="text-lg font-bold text-indigo-700 text-center">
-                    Tu total a pagar {comensalName || 'Comensal'}: ${Math.round(myTotal).toLocaleString('es-CO')}
+                    {tr('Tu total a pagar', 'Your total to pay')} {comensalName || tr('Comensal', 'Diner')}: ${Math.round(myTotal).toLocaleString('es-CO')}
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
