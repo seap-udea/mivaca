@@ -32,7 +32,7 @@ export default function VaqueroDashboard() {
   const [productValue, setProductValue] = useState('');
   const [productQuantity, setProductQuantity] = useState(1);
   const [distributionType, setDistributionType] = useState<'single' | 'all'>('single');
-  const [selectedComensalId, setSelectedComensalId] = useState('');
+  const [selectedComensalIds, setSelectedComensalIds] = useState<string[]>([]);
   const [submittingProduct, setSubmittingProduct] = useState(false);
   const [brebKey, setBrebKey] = useState('');
   const [brebKeyInput, setBrebKeyInput] = useState('');
@@ -370,6 +370,12 @@ export default function VaqueroDashboard() {
     }
   }, [vacaId, tipPercentInput, payments, fetchVaca]);
 
+  const toggleSelectedComensalId = useCallback((id: string) => {
+    setSelectedComensalIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }, []);
+
   const subtotal = useMemo(
     () => vaca?.products.reduce((sum, p) => sum + p.valorEnCarta * p.numero, 0) ?? 0,
     [vaca?.products]
@@ -399,8 +405,8 @@ export default function VaqueroDashboard() {
       return;
     }
     
-    if (distributionType === 'single' && !selectedComensalId) {
-      alert('Por favor selecciona un comensal');
+    if (distributionType === 'single' && selectedComensalIds.length === 0) {
+      alert('Por favor selecciona uno o más comensales');
       return;
     }
     
@@ -411,9 +417,18 @@ export default function VaqueroDashboard() {
 
     setSubmittingProduct(true);
     try {
-      if (distributionType === 'single') {
-        // Add product to single comensal
-        const selectedComensal = comensales.find(c => c.id === selectedComensalId);
+      const targets =
+        distributionType === 'all'
+          ? comensales
+          : comensales.filter((c) => selectedComensalIds.includes(c.id));
+
+      if (targets.length === 0) {
+        throw new Error('No hay comensales seleccionados');
+      }
+
+      if (targets.length === 1) {
+        // Add product to a single comensal (no group)
+        const only = targets[0];
         const response = await fetch(`/api/vaca/${vacaId}/products`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -421,8 +436,8 @@ export default function VaqueroDashboard() {
             producto: productName.trim(),
             valorEnCarta: value,
             numero: productQuantity,
-            comensalId: selectedComensalId,
-            comensalName: selectedComensal?.name || 'Vaquero',
+            comensalId: only.id,
+            comensalName: only.name || 'Comensal',
             addedByVaquero: true,
           }),
         });
@@ -431,9 +446,10 @@ export default function VaqueroDashboard() {
           throw new Error('Failed to add product');
         }
       } else {
-        // Distribute product among all comensales
-        const valuePerComensal = value / comensales.length;
-        const promises = comensales.map((comensal) =>
+        // Distribute product among selected comensales
+        const valuePerComensal = value / targets.length;
+        const distributionGroupId = uuidv4();
+        const promises = targets.map((comensal) =>
           fetch(`/api/vaca/${vacaId}/products`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -444,12 +460,13 @@ export default function VaqueroDashboard() {
               comensalId: comensal.id,
               comensalName: comensal.name,
               addedByVaquero: true,
+              distributionGroupId,
             }),
           })
         );
 
         const responses = await Promise.all(promises);
-        const failed = responses.some(r => !r.ok);
+        const failed = responses.some((r) => !r.ok);
         if (failed) {
           throw new Error('Failed to add product to some comensales');
         }
@@ -459,7 +476,7 @@ export default function VaqueroDashboard() {
       setProductName('');
       setProductValue('');
       setProductQuantity(1);
-      setSelectedComensalId('');
+      setSelectedComensalIds([]);
       
       // Refresh data
       await fetchVaca();
@@ -469,7 +486,7 @@ export default function VaqueroDashboard() {
     } finally {
       setSubmittingProduct(false);
     }
-  }, [vacaId, productName, productValue, productQuantity, distributionType, selectedComensalId, comensales, fetchVaca]);
+  }, [vacaId, productName, productValue, productQuantity, distributionType, selectedComensalIds, comensales, fetchVaca]);
 
   const handleDeleteProduct = useCallback(async (productId: string, comensalId: string, distributionGroupId?: string) => {
     if (!vacaId) {
@@ -987,12 +1004,12 @@ export default function VaqueroDashboard() {
                     checked={distributionType === 'single'}
                     onChange={(e) => {
                       setDistributionType('single');
-                      setSelectedComensalId('');
+                      setSelectedComensalIds([]);
                     }}
                     disabled={!!vaca?.restaurantBillTotal}
                     className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <span className="text-sm text-gray-700">Cargar a un comensal</span>
+                  <span className="text-sm text-gray-700">Cargar a comensales elegidos</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -1002,7 +1019,7 @@ export default function VaqueroDashboard() {
                     checked={distributionType === 'all'}
                     onChange={(e) => {
                       setDistributionType('all');
-                      setSelectedComensalId('');
+                      setSelectedComensalIds([]);
                     }}
                     disabled={!!vaca?.restaurantBillTotal}
                     className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1013,26 +1030,77 @@ export default function VaqueroDashboard() {
               
               {distributionType === 'single' && comensales.length > 0 && (
                 <div>
-                  <label htmlFor="selectedComensal" className="block text-sm font-medium text-gray-700 mb-2">
-                    Seleccionar Comensal
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar comensales
                   </label>
-                  <select
-                    id="selectedComensal"
-                    value={selectedComensalId}
-                    onChange={(e) => setSelectedComensalId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!!vaca?.restaurantBillTotal}
-                    required={distributionType === 'single'}
-                  >
-                    <option value="">Selecciona un comensal</option>
-                    {comensales.map((comensal) => (
-                      <option key={comensal.id} value={comensal.id}>
-                        {comensal.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {comensales.map((comensal) => {
+                      const checked = selectedComensalIds.includes(comensal.id);
+                      return (
+                        <label
+                          key={comensal.id}
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer select-none ${
+                            checked
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
+                              : 'bg-white border-gray-200 text-gray-700'
+                          } ${vaca?.restaurantBillTotal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSelectedComensalId(comensal.id)}
+                            disabled={!!vaca?.restaurantBillTotal}
+                            className="h-4 w-4"
+                          />
+                          <span>{comensal.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedComensalIds.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Marca uno o más comensales para repartir el producto entre ellos.
+                    </p>
+                  )}
                 </div>
               )}
+
+              {distributionType === 'single' &&
+                comensales.length > 0 &&
+                selectedComensalIds.length > 0 &&
+                parseFloat(productValue || '0') > 0 && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      El valor se dividirá equitativamente entre {selectedComensalIds.length}{' '}
+                      comensal{selectedComensalIds.length !== 1 ? 'es' : ''}. Cada uno pagará:
+                    </p>
+                    <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
+                      <li>
+                        Subtotal: $
+                        {(
+                          (parseFloat(productValue || '0') / selectedComensalIds.length) *
+                          productQuantity
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                      <li>
+                        Propina ({tipPercent}%): $
+                        {(
+                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                            productQuantity) *
+                          tipRate
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                      <li className="font-semibold">
+                        Total: $
+                        {(
+                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                            productQuantity) *
+                          tipFactor
+                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </li>
+                    </ul>
+                  </div>
+                )}
               
               {distributionType === 'all' && comensales.length > 0 && parseFloat(productValue || '0') > 0 && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
