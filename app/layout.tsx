@@ -155,6 +155,12 @@ gtag('config', '${gaMeasurementId}');
               >
                 Licencia
               </a>
+              <a
+                href="/novedades"
+                className="text-indigo-600 hover:text-indigo-800 hover:underline"
+              >
+                Novedades
+              </a>
             </div>
             <div className="flex flex-col items-center gap-2">
               <div className="text-sm text-gray-700">
