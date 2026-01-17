@@ -19,6 +19,18 @@ export default function ComensalPage() {
   }, []);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
+  const moneyFormatter = useMemo(() => {
+    const locale = isEn ? 'en-GB' : 'es-CO';
+    const fractionDigits = isEn ? 2 : 0;
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+  }, [isEn]);
+  const formatMoney = useCallback(
+    (value: number) => `$${moneyFormatter.format(Number.isFinite(value) ? value : 0)}`,
+    [moneyFormatter]
+  );
   const [vaca, setVaca] = useState<Vaca | null>(null);
   const [comensalName, setComensalName] = useState('');
   const [comensalId, setComensalId] = useState('');
@@ -579,12 +591,15 @@ export default function ComensalPage() {
                     value={product.valorEnCarta || ''}
                     onChange={(e) => updateProduct(index, 'valorEnCarta', Number(e.target.value))}
                     min="0"
+                    step={isEn ? '0.01' : '1'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}
                     required
                   />
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {tr("Sin puntos ni '$'", "No dots and no '$'")}
+                    {isEn
+                      ? tr('', 'You may use decimals (e.g., 10.50)')
+                      : tr("Sin puntos ni '$'", '')}
                   </p>
                 </div>
                 <div className="col-span-2">
@@ -664,7 +679,7 @@ export default function ComensalPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-gray-800">
-                      ${Math.round(product.valorEnCarta * product.numero).toLocaleString('es-CO')}
+                      {formatMoney(product.valorEnCarta * product.numero)}
                     </p>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
@@ -701,18 +716,18 @@ export default function ComensalPage() {
               ))}
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal:</span>
-                  <span>${Math.round(mySubtotal).toLocaleString('es-CO')}</span>
+                  <span>{tr('Subtotal', 'Subtotal')}:</span>
+                  <span>{formatMoney(mySubtotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>
                     {tr('Propina', 'Tip')} ({tipPercent}%):
                   </span>
-                  <span>${Math.round(myTip).toLocaleString('es-CO')}</span>
+                  <span>{formatMoney(myTip)}</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
                   <span>{tr('Mi Total', 'My total')}:</span>
-                  <span>${Math.round(myTotal).toLocaleString('es-CO')}</span>
+                  <span>{formatMoney(myTotal)}</span>
                 </div>
               </div>
             </div>
@@ -775,7 +790,7 @@ export default function ComensalPage() {
                 </p>
                 <div className="mb-6 p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
                   <p className="text-lg font-bold text-indigo-700 text-center">
-                    {tr('Tu total a pagar', 'Your total to pay')} {comensalName || tr('Comensal', 'Diner')}: ${Math.round(myTotal).toLocaleString('es-CO')}
+                    {tr('Tu total a pagar', 'Your total to pay')} {comensalName || tr('Comensal', 'Diner')}: {formatMoney(myTotal)}
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
