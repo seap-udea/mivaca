@@ -984,17 +984,23 @@ export default function VaqueroDashboard() {
         {advancedFeaturesEnabled && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              Propina
+              {tr('Propina', 'Tip')}
             </h2>
             <p className="text-sm text-gray-600 mb-4">
-              Define el porcentaje de propina que usará la app para calcular los totales.
-              Valor por defecto: <b>10%</b>.
+              {tr(
+                'Define el porcentaje de propina que usará la app para calcular los totales. Valor por defecto: ',
+                'Set the tip percentage the app will use to calculate totals. Default: '
+              )}
+              <b>10%</b>.
             </p>
 
             {payments.length > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  No se puede modificar la propina después de que algún comensal haya pagado.
+                  {tr(
+                    'No se puede modificar la propina después de que algún comensal haya pagado.',
+                    'You cannot change the tip after any diner has paid.'
+                  )}
                 </p>
               </div>
             )}
@@ -1002,7 +1008,7 @@ export default function VaqueroDashboard() {
             <form onSubmit={handleTipPercentSubmit} className="space-y-3">
               <div>
                 <label htmlFor="tipPercent" className="block text-sm font-medium text-gray-700 mb-2">
-                  Porcentaje de propina
+                  {tr('Porcentaje de propina', 'Tip percentage')}
                 </label>
                 <div className="flex gap-2 items-center">
                   <input
@@ -1019,7 +1025,7 @@ export default function VaqueroDashboard() {
                   />
                   <span className="text-gray-700">%</span>
                   <span className="text-sm text-gray-500">
-                    (actual: <b>{tipPercent}%</b>)
+                    ({tr('actual', 'current')}: <b>{tipPercent}%</b>)
                   </span>
                 </div>
               </div>
@@ -1029,7 +1035,9 @@ export default function VaqueroDashboard() {
                 disabled={payments.length > 0 || submittingTipPercent}
                 className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submittingTipPercent ? 'Guardando...' : 'Guardar porcentaje de propina'}
+                {submittingTipPercent
+                  ? tr('Guardando...', 'Saving...')
+                  : tr('Guardar porcentaje de propina', 'Save tip percentage')}
               </button>
             </form>
           </div>
@@ -1039,11 +1047,11 @@ export default function VaqueroDashboard() {
         {(
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Productos Agregados por Comensales
+              {tr('Productos Agregados por Comensales', 'Items added by diners')}
             </h2>
             {vaca.products.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
-                Aún no hay productos agregados
+                {tr('Aún no hay productos agregados', 'No items yet')}
               </p>
             ) : (
               <div className="space-y-3">
@@ -1055,7 +1063,7 @@ export default function VaqueroDashboard() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-800">{product.producto}</p>
                       <p className="text-sm text-gray-600">
-                        {product.comensalName || 'Comensal'} • Cantidad: {product.numero}
+                        {(product.comensalName || tr('Comensal', 'Diner'))} • {tr('Cantidad', 'Qty')}: {product.numero}
                       </p>
                     </div>
                     <p className="text-lg font-semibold text-gray-800">
@@ -1507,15 +1515,17 @@ export default function VaqueroDashboard() {
             </h2>
             <div className="space-y-2">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal:</span>
+                <span>{tr('Subtotal', 'Subtotal')}:</span>
                 <span>${Math.round(subtotal).toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>Propina ({tipPercent}%):</span>
+                <span>
+                  {tr('Propina', 'Tip')} ({tipPercent}%):
+                </span>
                 <span>${Math.round(tip).toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
-                <span>Total:</span>
+                <span>{tr('Total', 'Total')}:</span>
                 <span>${Math.round(total).toLocaleString('es-CO')}</span>
               </div>
             </div>
