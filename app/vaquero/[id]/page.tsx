@@ -432,6 +432,13 @@ export default function VaqueroDashboard() {
   const tipFactor = useMemo(() => 1 + tipRate, [tipRate]);
   const tip = useMemo(() => subtotal * tipRate, [subtotal, tipRate]);
 
+  const round1 = useCallback((n: number) => Math.round(n * 10) / 10, []);
+  const totalRounded = useMemo(() => round1(total), [total, round1]);
+  const totalCollectedRounded = useMemo(
+    () => round1(totalCollected),
+    [totalCollected, round1]
+  );
+
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1573,9 +1580,9 @@ export default function VaqueroDashboard() {
                 <div className="flex justify-between text-xl font-bold text-gray-800">
                   <span>Total Recaudado:</span>
                   <span className={
-                    totalCollected > total 
+                    totalCollectedRounded > totalRounded 
                       ? 'text-violet-600' 
-                      : totalCollected < total 
+                      : totalCollectedRounded < totalRounded 
                         ? 'text-red-600' 
                         : 'text-green-700'
                   }>
@@ -1586,19 +1593,19 @@ export default function VaqueroDashboard() {
                   <span>Total Esperado:</span>
                   <span>${Math.round(total).toLocaleString('es-CO')}</span>
                 </div>
-                {totalCollected > total && (
+                {totalCollectedRounded > totalRounded && (
                   <p className="text-sm text-violet-600 font-medium mt-2">
                     ⚠ Se ha recibido más del total esperado
                   </p>
                 )}
-                {totalCollected === total && (
+                {totalCollectedRounded === totalRounded && (
                   <p className="text-sm text-green-600 font-medium mt-2">
                     ✓ Todos los pagos han sido recibidos
                   </p>
                 )}
-                {totalCollected < total && (
+                {totalCollectedRounded < totalRounded && (
                   <p className="text-sm text-red-600 font-medium mt-2">
-                    Pendiente: ${Math.round(total - totalCollected).toLocaleString('es-CO')}
+                    Pendiente: ${Math.round(totalRounded - totalCollectedRounded).toLocaleString('es-CO')}
                   </p>
                 )}
               </div>
