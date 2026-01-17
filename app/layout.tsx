@@ -134,7 +134,7 @@ gtag('config', '${gaMeasurementId}');
         <footer className="w-full py-4 px-4 text-center text-sm text-gray-600 border-t border-gray-200 bg-white">
           <div className="max-w-4xl mx-auto">
             <p className="mb-3">
-              <i>Vibe coded</i> en Cursor por{' '}
+              <i>Vibe coded</i> {isEn ? 'in Cursor™ by' : 'en Cursor™ por'}{' '}
               <a 
                 href={`mailto:${developerEmail}`}
                 className="text-indigo-600 hover:text-indigo-800 hover:underline"
