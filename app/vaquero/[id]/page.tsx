@@ -1568,10 +1568,10 @@ export default function VaqueroDashboard() {
                         Se unió el {new Date(comensal.joinedAt as string | Date).toLocaleString('es-CO')}
                       </p>
                       <div className="mt-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Fusionar cuenta con
-                        </label>
                         <div className="flex flex-nowrap gap-2 items-center">
+                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                            Fusionar con
+                          </span>
                           <select
                             value={mergeTargetByComensalId[comensal.id] || ''}
                             onChange={(e) =>
@@ -1580,7 +1580,7 @@ export default function VaqueroDashboard() {
                                 [comensal.id]: e.target.value,
                               }))
                             }
-                            className="min-w-0 flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                           >
                             <option value="">Selecciona un comensal...</option>
                             {comensales
@@ -1595,7 +1595,7 @@ export default function VaqueroDashboard() {
                             type="button"
                             onClick={() => handleMergeComensales(comensal.id)}
                             disabled={!!mergingIds[comensal.id]}
-                            className="px-2 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                           >
                             {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
                           </button>
