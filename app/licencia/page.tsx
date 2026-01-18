@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getLang } from "@/lib/lang";
+import BackToSessionLink from "@/components/BackToSessionLink";
 
 export const metadata = {
   title: "Licencia · Mi Vaca",
@@ -132,12 +133,9 @@ export default async function LicenciaPage() {
           </p>
 
           <div className="pt-4 border-t border-gray-200 flex flex-wrap gap-3">
-            <Link
-              href="/"
-              className="text-indigo-600 hover:text-indigo-800 hover:underline"
-            >
+            <BackToSessionLink className="text-indigo-600 hover:text-indigo-800 hover:underline">
               {isEn ? "Back to home" : "Volver al inicio"}
-            </Link>
+            </BackToSessionLink>
             <Link
               href="/acerca"
               className="text-indigo-600 hover:text-indigo-800 hover:underline"

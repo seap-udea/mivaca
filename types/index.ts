@@ -16,6 +16,7 @@ export interface Vaca {
   createdAt: Date;
   vaqueroId: string;
   vaqueroName?: string; // Nombre del vaquero
+  lang?: 'es' | 'en'; // Idioma de la vaca (se fija al crearla)
   products: Product[];
   paymentQRCode?: string; // Base64 encoded image or URL
   brebKey?: string; // Llave de Bre-B (sistema bancario colombiano)

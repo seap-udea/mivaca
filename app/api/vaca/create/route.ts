@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
 
     // Generate a vaquero ID (in a real app, this would come from authentication)
     const vaqueroId = uuidv4();
-    const vaca = store.createVaca(name, vaqueroId, vaqueroName.trim());
+    const cookieLang = request.cookies.get('lang')?.value;
+    const lang = cookieLang === 'en' ? 'en' : 'es';
+    const vaca = store.createVaca(name, vaqueroId, vaqueroName.trim(), lang);
 
     return NextResponse.json({ vaca, vaqueroId });
   } catch (error) {

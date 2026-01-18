@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 type Lang = "es" | "en";
 
@@ -19,6 +20,7 @@ function setLangCookie(lang: Lang) {
 
 export default function LanguageToggle() {
   const router = useRouter();
+  const pathname = usePathname();
   const [lang, setLang] = useState<Lang>("es");
 
   useEffect(() => {
@@ -39,12 +41,16 @@ export default function LanguageToggle() {
     <div className="flex flex-col items-center gap-1">
       {buttons.map((b) => {
         const active = lang === b.lang;
+        const locked =
+          pathname?.startsWith("/vaquero/") ||
+          pathname?.startsWith("/comensal/");
         return (
           <button
             key={b.lang}
             type="button"
             onClick={() => {
               if (lang === b.lang) return;
+              if (locked) return;
               setLangCookie(b.lang);
               setLang(b.lang);
               // In Next 16 App Router, a full reload is the most reliable way to
@@ -56,8 +62,15 @@ export default function LanguageToggle() {
                 ? "bg-white border-indigo-400 ring-2 ring-indigo-300"
                 : "bg-white/80 border-gray-200 hover:bg-white opacity-80"
             }`}
-            title={b.label}
+            title={
+              locked
+                ? (lang === "en"
+                    ? "Language is locked for this session"
+                    : "El idioma está bloqueado para esta sesión")
+                : b.label
+            }
             aria-label={b.label}
+            disabled={locked}
           >
             <span className="text-base leading-none" aria-hidden>
               {b.flag}

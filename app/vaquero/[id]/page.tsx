@@ -18,8 +18,12 @@ export default function VaqueroDashboard() {
   const vacaId = params.id as string;
   const [lang, setLang] = useState<Lang>('es');
   useEffect(() => {
-    setLang(getClientLang());
-  }, []);
+    try {
+      window.sessionStorage.setItem('returnTo', `/vaquero/${vacaId}`);
+    } catch {
+      // ignore
+    }
+  }, [vacaId]);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   const moneyFormatter = useMemo(() => {
@@ -100,6 +104,12 @@ export default function VaqueroDashboard() {
       if (data.vaca) {
         setVaca(data.vaca);
         setTotal(data.total);
+        // Lock language to the vaca's language once the session exists.
+        if (data.vaca.lang === 'en' || data.vaca.lang === 'es') {
+          setLang(data.vaca.lang);
+        } else {
+          setLang(getClientLang());
+        }
         if (data.vaca.paymentQRCode) {
           setPaymentQR(data.vaca.paymentQRCode);
         }
@@ -538,6 +548,25 @@ export default function VaqueroDashboard() {
     () => round1(totalCollected),
     [totalCollected, round1]
   );
+
+  // Emit GA event once per session when the vaca is fully paid.
+  const completionEventSentRef = useRef(false);
+  useEffect(() => {
+    if (completionEventSentRef.current) return;
+    if (totalRounded <= 0) return;
+    if (totalCollectedRounded !== totalRounded) return;
+
+    if (typeof window === 'undefined') return;
+    if (typeof (window as any).gtag !== 'function') return;
+
+    completionEventSentRef.current = true;
+    (window as any).gtag('event', 'vaca_completed', {
+      vaca_id: vacaId,
+      lang,
+      total: totalRounded,
+      total_collected: totalCollectedRounded,
+    });
+  }, [totalRounded, totalCollectedRounded, vacaId, lang]);
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

@@ -15,8 +15,12 @@ export default function ComensalPage() {
   const vacaId = params.id as string;
   const [lang, setLang] = useState<Lang>('es');
   useEffect(() => {
-    setLang(getClientLang());
-  }, []);
+    try {
+      window.sessionStorage.setItem('returnTo', `/comensal/${vacaId}`);
+    } catch {
+      // ignore
+    }
+  }, [vacaId]);
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   const moneyFormatter = useMemo(() => {
@@ -100,6 +104,12 @@ export default function ComensalPage() {
       const data = await response.json();
       if (data.vaca) {
         setVaca(data.vaca);
+        // Lock language to the vaca's language once the session exists.
+        if (data.vaca.lang === 'en' || data.vaca.lang === 'es') {
+          setLang(data.vaca.lang);
+        } else {
+          setLang(getClientLang());
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -608,8 +618,10 @@ export default function ComensalPage() {
                   </label>
                   <input
                     type="number"
-                    value={product.numero}
-                    onChange={(e) => updateProduct(index, 'numero', Number(e.target.value))}
+                    value={product.numero === 0 ? '' : product.numero}
+                    onChange={(e) =>
+                      updateProduct(index, 'numero', e.target.value === '' ? 0 : Number(e.target.value))
+                    }
                     min="1"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={hasPaid || !!vaca?.restaurantBillTotal}

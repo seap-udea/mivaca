@@ -12,13 +12,14 @@ class VacaStore {
   private comensales: Map<string, Comensal> = new Map();
   private payments: Map<string, Payment> = new Map();
 
-  createVaca(name: string, vaqueroId: string, vaqueroName?: string): Vaca {
+  createVaca(name: string, vaqueroId: string, vaqueroName?: string, lang: 'es' | 'en' = 'es'): Vaca {
     const vaca: Vaca = {
       id: uuidv4(),
       name,
       createdAt: new Date(),
       vaqueroId,
       vaqueroName,
+      lang,
       products: [],
       tipPercent: 10,
       isActive: true,
