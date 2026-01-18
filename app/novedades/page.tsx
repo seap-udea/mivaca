@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { readFileSync } from "fs";
 import { join } from "path";
+import BackToSessionLink from "@/components/BackToSessionLink";
 
 export const metadata = {
   title: "Novedades · Mi Vaca",
@@ -89,12 +90,11 @@ export default function NovedadesPage() {
           )}
 
           <div className="pt-4 border-t border-gray-200 flex flex-wrap gap-3">
-            <Link
-              href="/"
+            <BackToSessionLink
               className="text-indigo-600 hover:text-indigo-800 hover:underline"
             >
               Volver al inicio
-            </Link>
+            </BackToSessionLink>
             <Link
               href="/acerca"
               className="text-indigo-600 hover:text-indigo-800 hover:underline"

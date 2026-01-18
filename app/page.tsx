@@ -43,7 +43,9 @@ export default function Home() {
       if (data.vaca) {
         // Store vaqueroId in localStorage
         localStorage.setItem('vaqueroId', data.vaqueroId);
-        router.push(`/vaquero/${data.vaca.id}`);
+        // Include lang parameter when redirecting
+        const currentLang = getClientLang();
+        router.push(`/vaquero/${data.vaca.id}?lang=${currentLang}`);
       }
     } catch (error) {
       console.error('Error creating vaca:', error);
@@ -57,9 +59,9 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="flex justify-center mb-4">
-          <Image 
-            src="/vaca-esferica-jz.webp" 
-            alt="Vaca Esférica" 
+          <Image
+            src="/vaca-esferica-jz.webp"
+            alt="Vaca Esférica"
             width={96}
             height={96}
             className="object-contain"
@@ -110,7 +112,7 @@ export default function Home() {
             {tr('Ver video tutorial', 'Watch tutorial')} <span aria-hidden>🇨🇴</span>
           </a>
         </div>
-        
+
         <form onSubmit={handleCreateVaca} className="space-y-4">
           <div>
             <label htmlFor="vaqueroName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -144,7 +146,7 @@ export default function Home() {
               {tr('Ej. Cena en el restaurante', 'e.g. Dinner at the restaurant')}
             </p>
           </div>
-          
+
           <button
             type="submit"
             disabled={loading}
@@ -164,7 +166,7 @@ export default function Home() {
           </p>
         </div>
       </div>
-      
+
       {/* Banners manuales de restaurantes */}
       {restaurantAds.length > 0 ? (
         <div className="mt-6 w-full max-w-md">

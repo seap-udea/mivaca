@@ -20,7 +20,16 @@ export default function BackToSessionLink({
     try {
       const from = window.sessionStorage.getItem("returnTo") || "";
       if (from.startsWith("/vaquero/") || from.startsWith("/comensal/")) {
-        setHref(from);
+        // Get current language from URL parameter, fallback to 'es'
+        const currentParams = new URLSearchParams(window.location.search);
+        const currentLang = currentParams.get('lang') || 'es';
+
+        // Add lang parameter to the return URL
+        const url = new URL(from, window.location.origin);
+        if (!url.searchParams.has('lang')) {
+          url.searchParams.set('lang', currentLang);
+        }
+        setHref(url.pathname + url.search);
       }
     } catch {
       // ignore

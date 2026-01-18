@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
@@ -15,8 +15,15 @@ export default function VaqueroDashboard() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const vacaId = params.id as string;
-  const [lang, setLang] = useState<Lang>('es');
+
+  // Read lang from URL parameter first, fallback to 'es'
+  const urlLang = searchParams.get('lang');
+  const initialLang: Lang = (urlLang === 'en' || urlLang === 'es') ? urlLang : 'es';
+
+  const [lang, setLang] = useState<Lang>(initialLang);
+
   useEffect(() => {
     try {
       window.sessionStorage.setItem('returnTo', `/vaquero/${vacaId}`);
@@ -201,10 +208,15 @@ export default function VaqueroDashboard() {
   }, [joinUrl]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setJoinUrl(`${window.location.origin}/comensal/${vacaId}`);
+    if (typeof window !== 'undefined' && vaca) {
+      // Prioritize URL lang parameter, then vaca.lang, then default to 'es'
+      const urlLang = searchParams.get('lang');
+      const effectiveLang = (urlLang === 'en' || urlLang === 'es')
+        ? urlLang
+        : (vaca.lang || 'es');
+      setJoinUrl(`${window.location.origin}/comensal/${vacaId}?lang=${effectiveLang}`);
     }
-  }, [vacaId]);
+  }, [vacaId, vaca, searchParams]);
 
   useEffect(() => {
     fetchVaca();
@@ -223,7 +235,7 @@ export default function VaqueroDashboard() {
   useEffect(() => {
     if (total > 0 && totalCollected > 0 && Math.round(totalCollected) === Math.round(total) && !confettiTriggeredRef.current) {
       confettiTriggeredRef.current = true;
-      
+
       // Launch confetti animation
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -233,7 +245,7 @@ export default function VaqueroDashboard() {
         return Math.random() * (max - min) + min;
       }
 
-      const interval = setInterval(function() {
+      const interval = setInterval(function () {
         const timeLeft = animationEnd - Date.now();
 
         if (timeLeft <= 0) {
@@ -241,14 +253,14 @@ export default function VaqueroDashboard() {
         }
 
         const particleCount = 50 * (timeLeft / duration);
-        
+
         // Launch from left
         confetti({
           ...defaults,
           particleCount,
           origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
         });
-        
+
         // Launch from right
         confetti({
           ...defaults,
@@ -257,7 +269,7 @@ export default function VaqueroDashboard() {
         });
       }, 250);
     }
-    
+
     // Reset trigger if totals don't match anymore
     if (Math.round(totalCollected) !== Math.round(total)) {
       confettiTriggeredRef.current = false;
@@ -277,7 +289,7 @@ export default function VaqueroDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ qrCode: base64String }),
         });
-        
+
         if (response.ok) {
           setPaymentQR(base64String);
         } else {
@@ -301,7 +313,7 @@ export default function VaqueroDashboard() {
 
   const handleBreBKeySubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!brebKeyInput.trim()) {
       alert(tr('Por favor ingresa la llave de Bre-B', 'Please enter the Bre-B key'));
       return;
@@ -351,7 +363,7 @@ export default function VaqueroDashboard() {
       alert(tr('Por favor ingresa el valor total de la cuenta del restaurante', 'Please enter the restaurant bill total'));
       return;
     }
-    
+
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
       alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
@@ -570,29 +582,29 @@ export default function VaqueroDashboard() {
 
   const handleAddProduct = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!productName.trim()) {
       alert(tr('Por favor ingresa el nombre del producto', 'Please enter the item name'));
       return;
     }
-    
+
     const trimmedValue = productValue.trim();
     if (!trimmedValue) {
       alert(tr('Por favor ingresa el valor del producto', 'Please enter the item price'));
       return;
     }
-    
+
     const value = parseFloat(trimmedValue);
     if (isNaN(value) || value <= 0 || !isFinite(value)) {
       alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid value greater than 0'));
       return;
     }
-    
+
     if (distributionType === 'single' && selectedComensalIds.length === 0) {
       alert(tr('Por favor selecciona uno o más comensales', 'Please select one or more diners'));
       return;
     }
-    
+
     if (distributionType === 'all' && comensales.length === 0) {
       alert(tr('No hay comensales registrados para distribuir el producto', 'There are no diners to distribute this item'));
       return;
@@ -660,7 +672,7 @@ export default function VaqueroDashboard() {
       setProductValue('');
       setProductQuantity(1);
       setSelectedComensalIds([]);
-      
+
       // Refresh data
       await fetchVaca();
     } catch (error) {
@@ -676,12 +688,12 @@ export default function VaqueroDashboard() {
       alert(tr('Error: No se encontró el ID de la vaca. Por favor, recarga la página.', 'Error: session ID not found. Please reload the page.'));
       return;
     }
-    
+
     // If it's a distributed product, confirm deletion of all related products
-    const confirmMessage = distributionGroupId 
+    const confirmMessage = distributionGroupId
       ? '¿Estás seguro de que quieres eliminar este producto de todas las cuentas de los comensales?'
       : '¿Estás seguro de que quieres eliminar este producto?';
-    
+
     if (!confirm(confirmMessage)) {
       return;
     }
@@ -697,10 +709,10 @@ export default function VaqueroDashboard() {
             body: JSON.stringify({ comensalId: product.comensalId }),
           })
         );
-        
+
         const responses = await Promise.all(deletePromises);
         const failed = responses.some(r => !r.ok);
-        
+
         if (failed) {
           throw new Error('Error al eliminar algunos productos del grupo');
         }
@@ -734,11 +746,11 @@ export default function VaqueroDashboard() {
   // Group vaquero products by distributionGroupId
   const groupedVaqueroProducts = useMemo(() => {
     if (!vaca) return { groups: [], singleProducts: [] };
-    
+
     const vaqueroProducts = vaca.products.filter(p => p.addedByVaquero);
     const groups = new Map<string, Product[]>();
     const singleProducts: Product[] = [];
-    
+
     vaqueroProducts.forEach(product => {
       if (product.distributionGroupId) {
         const group = groups.get(product.distributionGroupId) || [];
@@ -748,7 +760,7 @@ export default function VaqueroDashboard() {
         singleProducts.push(product);
       }
     });
-    
+
     return { groups: Array.from(groups.values()), singleProducts };
   }, [vaca]);
 
@@ -756,16 +768,16 @@ export default function VaqueroDashboard() {
     if (!vaca) return;
 
     const doc = new jsPDF();
-    
+
     // Título
     doc.setFontSize(20);
     doc.text('Informe de la Vaca', 14, 20);
-    
+
     // Información de la vaca
     doc.setFontSize(12);
     doc.text(`Nombre: ${vaca.name}`, 14, 30);
     doc.text(`Fecha: ${new Date(vaca.createdAt).toLocaleString(isEn ? 'en-GB' : 'es-CO')}`, 14, 37);
-    
+
     let yPosition = 47;
 
     // Tabla de productos
@@ -820,7 +832,7 @@ export default function VaqueroDashboard() {
         const comensalTip = comensalSubtotal * tipRate;
         const comensalTotal = comensalSubtotal + comensalTip;
         const hasPaid = payments.some((p) => p.comensalId === comensal.id);
-        
+
         return [
           comensal.name,
           `${formatMoney(comensalTotal)}`,
@@ -882,7 +894,7 @@ export default function VaqueroDashboard() {
     yPosition += 7;
     doc.text(`Total Esperado: ${formatMoney(total)}`, 14, yPosition);
     yPosition += 7;
-    
+
     if (totalCollected >= total) {
       doc.setTextColor(34, 197, 94); // green-600
       doc.text('✓ Todos los pagos han sido recibidos', 14, yPosition);
@@ -930,9 +942,9 @@ export default function VaqueroDashboard() {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex justify-center mb-4">
-            <Image 
-              src="/vaca-esferica-jz.webp" 
-              alt="Vaca Esférica" 
+            <Image
+              src="/vaca-esferica-jz.webp"
+              alt="Vaca Esférica"
               width={80}
               height={80}
               className="object-contain"
@@ -1149,17 +1161,16 @@ export default function VaqueroDashboard() {
             )}
             <form
               onSubmit={handleAddProduct}
-              className={`space-y-4 ${
-                vaca?.restaurantBillTotal || comensales.length === 0
-                  ? 'pointer-events-none opacity-50'
-                  : ''
-              }`}
+              className={`space-y-4 ${vaca?.restaurantBillTotal || comensales.length === 0
+                ? 'pointer-events-none opacity-50'
+                : ''
+                }`}
             >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Producto
-                </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre del Producto
+                  </label>
                   <input
                     id="productName"
                     type="text"
@@ -1210,151 +1221,150 @@ export default function VaqueroDashboard() {
                     Cantidad
                   </p>
                 </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Distribución
-              </label>
-              <div className="flex gap-4 mb-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="distributionType"
-                    value="single"
-                    checked={distributionType === 'single'}
-                    onChange={(e) => {
-                      setDistributionType('single');
-                      setSelectedComensalIds([]);
-                    }}
-                    disabled={!!vaca?.restaurantBillTotal}
-                    className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <span className="text-sm text-gray-700">Cargar a comensales elegidos</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="distributionType"
-                    value="all"
-                    checked={distributionType === 'all'}
-                    onChange={(e) => {
-                      setDistributionType('all');
-                      setSelectedComensalIds([]);
-                    }}
-                    disabled={!!vaca?.restaurantBillTotal}
-                    className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <span className="text-sm text-gray-700">Distribuir entre todos</span>
-                </label>
               </div>
-              
-              {distributionType === 'single' && comensales.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Seleccionar comensales
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Distribución
+                </label>
+                <div className="flex gap-4 mb-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="distributionType"
+                      value="single"
+                      checked={distributionType === 'single'}
+                      onChange={(e) => {
+                        setDistributionType('single');
+                        setSelectedComensalIds([]);
+                      }}
+                      disabled={!!vaca?.restaurantBillTotal}
+                      className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-gray-700">Cargar a comensales elegidos</span>
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {comensales.map((comensal) => {
-                      const checked = selectedComensalIds.includes(comensal.id);
-                      return (
-                        <label
-                          key={comensal.id}
-                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer select-none ${
-                            checked
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="distributionType"
+                      value="all"
+                      checked={distributionType === 'all'}
+                      onChange={(e) => {
+                        setDistributionType('all');
+                        setSelectedComensalIds([]);
+                      }}
+                      disabled={!!vaca?.restaurantBillTotal}
+                      className="mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-sm text-gray-700">Distribuir entre todos</span>
+                  </label>
+                </div>
+
+                {distributionType === 'single' && comensales.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar comensales
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {comensales.map((comensal) => {
+                        const checked = selectedComensalIds.includes(comensal.id);
+                        return (
+                          <label
+                            key={comensal.id}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer select-none ${checked
                               ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
                               : 'bg-white border-gray-200 text-gray-700'
-                          } ${vaca?.restaurantBillTotal ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleSelectedComensalId(comensal.id)}
-                            disabled={!!vaca?.restaurantBillTotal}
-                            className="h-4 w-4"
-                          />
-                          <span>{comensal.name}</span>
-                        </label>
-                      );
-                    })}
+                              } ${vaca?.restaurantBillTotal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSelectedComensalId(comensal.id)}
+                              disabled={!!vaca?.restaurantBillTotal}
+                              className="h-4 w-4"
+                            />
+                            <span>{comensal.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {selectedComensalIds.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Marca uno o más comensales para repartir el producto entre ellos.
+                      </p>
+                    )}
                   </div>
-                  {selectedComensalIds.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Marca uno o más comensales para repartir el producto entre ellos.
-                    </p>
-                  )}
-                </div>
-              )}
+                )}
 
-              {distributionType === 'single' &&
-                comensales.length > 0 &&
-                selectedComensalIds.length > 0 &&
-                parseFloat(productValue || '0') > 0 && (
+                {distributionType === 'single' &&
+                  comensales.length > 0 &&
+                  selectedComensalIds.length > 0 &&
+                  parseFloat(productValue || '0') > 0 && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        El valor se dividirá equitativamente entre {selectedComensalIds.length}{' '}
+                        comensal{selectedComensalIds.length !== 1 ? 'es' : ''}. Cada uno pagará:
+                      </p>
+                      <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
+                        <li>
+                          Subtotal: $
+                          {(
+                            (parseFloat(productValue || '0') / selectedComensalIds.length) *
+                            productQuantity
+                          ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                        </li>
+                        <li>
+                          Propina ({tipPercent}%): $
+                          {(
+                            ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                              productQuantity) *
+                            tipRate
+                          ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                        </li>
+                        <li className="font-semibold">
+                          Total: $
+                          {(
+                            ((parseFloat(productValue || '0') / selectedComensalIds.length) *
+                              productQuantity) *
+                            tipFactor
+                          ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                {distributionType === 'all' && comensales.length > 0 && parseFloat(productValue || '0') > 0 && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-sm text-blue-800">
-                      El valor se dividirá equitativamente entre {selectedComensalIds.length}{' '}
-                      comensal{selectedComensalIds.length !== 1 ? 'es' : ''}. Cada uno pagará:
+                      El valor se dividirá equitativamente entre {comensales.length} comensal{comensales.length !== 1 ? 'es' : ''}.
+                      Cada uno pagará:
                     </p>
                     <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
-                      <li>
-                        Subtotal: $
-                        {(
-                          (parseFloat(productValue || '0') / selectedComensalIds.length) *
-                          productQuantity
-                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
-                      </li>
-                      <li>
-                        Propina ({tipPercent}%): $
-                        {(
-                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
-                            productQuantity) *
-                          tipRate
-                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
-                      </li>
-                      <li className="font-semibold">
-                        Total: $
-                        {(
-                          ((parseFloat(productValue || '0') / selectedComensalIds.length) *
-                            productQuantity) *
-                          tipFactor
-                        ).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
-                      </li>
+                      <li>Subtotal: ${((parseFloat(productValue || '0') / comensales.length) * productQuantity).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                      <li>Propina ({tipPercent}%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipRate).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
+                      <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipFactor).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
                     </ul>
                   </div>
                 )}
-              
-              {distributionType === 'all' && comensales.length > 0 && parseFloat(productValue || '0') > 0 && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    El valor se dividirá equitativamente entre {comensales.length} comensal{comensales.length !== 1 ? 'es' : ''}. 
-                    Cada uno pagará:
-                  </p>
-                  <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
-                    <li>Subtotal: ${((parseFloat(productValue || '0') / comensales.length) * productQuantity).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li>Propina ({tipPercent}%): ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipRate).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                    <li className="font-semibold">Total: ${(((parseFloat(productValue || '0') / comensales.length) * productQuantity) * tipFactor).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</li>
-                  </ul>
-                </div>
-              )}
-              
-              {distributionType === 'all' && comensales.length === 0 && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    No hay comensales registrados. Primero deben unirse comensales a la vaca.
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <button
-              type="submit"
-              disabled={submittingProduct || !!vaca?.restaurantBillTotal}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Agregar producto"
-            >
-              {submittingProduct ? 'Agregando...' : 'Agregar Producto'}
-            </button>
-          </form>
+
+                {distributionType === 'all' && comensales.length === 0 && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      No hay comensales registrados. Primero deben unirse comensales a la vaca.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingProduct || !!vaca?.restaurantBillTotal}
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Agregar producto"
+              >
+                {submittingProduct ? 'Agregando...' : 'Agregar Producto'}
+              </button>
+            </form>
           </div>
         )}
 
@@ -1372,75 +1382,75 @@ export default function VaqueroDashboard() {
               </div>
             )}
             <form onSubmit={handleRestaurantBillSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
-                Valor total de la cuenta del restaurante
-              </label>
-              <input
-                ref={restaurantBillTotalInputRef}
-                id="restaurantBillTotal"
-                type="number"
-                value={restaurantBillTotal}
-                onChange={(e) => setRestaurantBillTotal(e.target.value)}
-                min="0"
-                step="1"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Ej: 150000"
-                disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.
-              </p>
+              <div>
+                <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
+                  Valor total de la cuenta del restaurante
+                </label>
+                <input
+                  ref={restaurantBillTotalInputRef}
+                  id="restaurantBillTotal"
+                  type="number"
+                  value={restaurantBillTotal}
+                  onChange={(e) => setRestaurantBillTotal(e.target.value)}
+                  min="0"
+                  step="1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej: 150000"
+                  disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal || comensales.length === 0}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.
+                </p>
+                {vaca?.restaurantBillTotal && (
+                  <p className="text-xs text-gray-600 mt-1 font-medium">
+                    {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
+                  </p>
+                )}
+                {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                      {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
+                      {comensales.length > 0 && (
+                        <> ({comensales.length} {tr('comensal', 'diner')}{comensales.length !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length)} {tr('cada uno', 'each')})</>
+                      )}
+                      <br />
+                      <span className="text-xs">
+                        {tr(
+                          `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                          `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+                className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  payments.length > 0
+                    ? 'No se puede modificar después de que algún comensal haya pagado'
+                    : vaca?.restaurantBillTotal
+                      ? 'Ya se ha guardado y distribuido el valor de la cuenta del restaurante'
+                      : ''
+                }
+              >
+                {submittingRestaurantBill ? 'Guardando...' : vaca?.restaurantBillTotal ? 'Ya Distribuido' : comensales.length > 0 ? 'Guardar y Distribuir Diferencia' : 'Guardar Valor (sin distribuir)'}
+              </button>
               {vaca?.restaurantBillTotal && (
-                <p className="text-xs text-gray-600 mt-1 font-medium">
-                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
+                <p className="text-xs text-green-600 mt-2">
+                  ✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.
                 </p>
               )}
-              {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
-                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
-                    {comensales.length > 0 && (
-                      <> ({comensales.length} {tr('comensal', 'diner')}{comensales.length !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / comensales.length)} {tr('cada uno', 'each')})</>
-                    )}
-                    <br />
-                    <span className="text-xs">
-                      {tr(
-                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
-                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
-                      )}
-                    </span>
-                  </p>
-                </div>
+              {payments.length > 0 && (
+                <p className="text-xs text-red-600 mt-2">
+                  ⚠ El formulario está deshabilitado porque algunos comensales ya han realizado pagos.
+                </p>
               )}
-            </div>
-            <button
-              type="submit"
-              disabled={payments.length > 0 || submittingRestaurantBill || !!vaca?.restaurantBillTotal}
-              className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                payments.length > 0 
-                  ? 'No se puede modificar después de que algún comensal haya pagado' 
-                  : vaca?.restaurantBillTotal 
-                    ? 'Ya se ha guardado y distribuido el valor de la cuenta del restaurante' 
-                    : ''
-              }
-            >
-              {submittingRestaurantBill ? 'Guardando...' : vaca?.restaurantBillTotal ? 'Ya Distribuido' : comensales.length > 0 ? 'Guardar y Distribuir Diferencia' : 'Guardar Valor (sin distribuir)'}
-            </button>
-            {vaca?.restaurantBillTotal && (
-              <p className="text-xs text-green-600 mt-2">
-                ✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.
-              </p>
-            )}
-            {payments.length > 0 && (
-              <p className="text-xs text-red-600 mt-2">
-                ⚠ El formulario está deshabilitado porque algunos comensales ya han realizado pagos.
-              </p>
-            )}
-          </form>
+            </form>
           </div>
         )}
 
@@ -1450,11 +1460,11 @@ export default function VaqueroDashboard() {
             ...groupedVaqueroProducts.groups.map(group => ({ type: 'group' as const, products: group })),
             ...groupedVaqueroProducts.singleProducts.map(product => ({ type: 'single' as const, product }))
           ];
-          
+
           return (
             <div className="bg-white rounded-2xl shadow-xl p-6 mt-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-               {tr('Productos Agregados por el Vaquero (colectivos)', 'Host-added items (shared)')}
+                {tr('Productos Agregados por el Vaquero (colectivos)', 'Host-added items (shared)')}
               </h2>
               {comensales.length === 0 && (
                 <p className="text-gray-500 text-center py-4">
@@ -1473,7 +1483,7 @@ export default function VaqueroDashboard() {
                       const firstProduct = group[0];
                       const totalValue = group.reduce((sum, p) => sum + (p.valorEnCarta * p.numero), 0);
                       const totalQuantity = firstProduct.numero; // Same quantity for all in group
-                      
+
                       return (
                         <div
                           key={`group-${firstProduct.distributionGroupId}`}
@@ -1607,81 +1617,81 @@ export default function VaqueroDashboard() {
               </div>
             )}
             <form onSubmit={handleRestaurantBillSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
-                {tr('Valor total de la cuenta del restaurante', 'Restaurant bill total')}
-              </label>
-              <input
-                ref={restaurantBillTotalInputRef}
-                id="restaurantBillTotal"
-                type="number"
-                value={restaurantBillTotal}
-                onChange={(e) => setRestaurantBillTotal(e.target.value)}
-                min="0"
-                step={isEn ? '0.01' : '1'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder={tr('Ej: 150000', 'e.g. 150000')}
-                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {tr(
-                  'Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.',
-                  'Enter the restaurant bill total. Any difference vs the app total will be distributed evenly among diners.'
+              <div>
+                <label htmlFor="restaurantBillTotal" className="block text-sm font-medium text-gray-700 mb-2">
+                  {tr('Valor total de la cuenta del restaurante', 'Restaurant bill total')}
+                </label>
+                <input
+                  ref={restaurantBillTotalInputRef}
+                  id="restaurantBillTotal"
+                  type="number"
+                  value={restaurantBillTotal}
+                  onChange={(e) => setRestaurantBillTotal(e.target.value)}
+                  min="0"
+                  step={isEn ? '0.01' : '1'}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder={tr('Ej: 150000', 'e.g. 150000')}
+                  disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {tr(
+                    'Ingresa el valor total de la cuenta entregada por el restaurante. La diferencia con el total calculado se distribuirá equitativamente entre los comensales.',
+                    'Enter the restaurant bill total. Any difference vs the app total will be distributed evenly among diners.'
+                  )}
+                </p>
+                {vaca?.restaurantBillTotal && (
+                  <p className="text-xs text-gray-600 mt-1 font-medium">
+                    {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
+                  </p>
                 )}
-              </p>
+                {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
+                      {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
+                      {unpaidComensalesCount > 0 && (
+                        <> ({unpaidComensalesCount} {tr('comensal', 'diner')}{unpaidComensalesCount !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount)} {tr('cada uno', 'each')})</>
+                      )}
+                      <br />
+                      <span className="text-xs">
+                        {tr(
+                          `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
+                          `Tip (${tipPercent}%) will be added automatically when calculating totals`
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
+              <button
+                type="submit"
+                disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
+                className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  vaca?.restaurantBillTotal
+                    ? tr(
+                      'Ya se ha guardado y distribuido el valor de la cuenta del restaurante',
+                      'The restaurant bill has already been saved and distributed'
+                    )
+                    : ''
+                }
+              >
+                {submittingRestaurantBill
+                  ? tr('Guardando...', 'Saving...')
+                  : vaca?.restaurantBillTotal
+                    ? tr('Ya Distribuido', 'Already distributed')
+                    : tr('Guardar y Distribuir Diferencia', 'Save and distribute difference')}
+              </button>
               {vaca?.restaurantBillTotal && (
-                <p className="text-xs text-gray-600 mt-1 font-medium">
-                  {tr('Valor actual', 'Current value')}: {formatMoney(vaca?.restaurantBillTotal || 0)}
+                <p className="text-xs text-green-600 mt-2">
+                  {tr(
+                    '✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.',
+                    '✓ The restaurant bill was saved and the difference was distributed.'
+                  )}
                 </p>
               )}
-              {restaurantBillTotal && parseFloat(restaurantBillTotal) > 0 && subtotal > 0 && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>{tr('Diferencia calculada (sin propina)', 'Calculated difference (before tip)')}:</strong>{' '}
-                    {formatMoney((parseFloat(restaurantBillTotal) / tipFactor) - subtotal)}
-                    {unpaidComensalesCount > 0 && (
-                      <> ({unpaidComensalesCount} {tr('comensal', 'diner')}{unpaidComensalesCount !== 1 ? (isEn ? 's' : 'es') : ''} × {formatMoney(((parseFloat(restaurantBillTotal) / tipFactor) - subtotal) / unpaidComensalesCount)} {tr('cada uno', 'each')})</>
-                    )}
-                    <br />
-                    <span className="text-xs">
-                      {tr(
-                        `La propina (${tipPercent}%) se agregará automáticamente al calcular los totales`,
-                        `Tip (${tipPercent}%) will be added automatically when calculating totals`
-                      )}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={submittingRestaurantBill || !!vaca?.restaurantBillTotal}
-              className="w-full py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                vaca?.restaurantBillTotal 
-                    ? tr(
-                        'Ya se ha guardado y distribuido el valor de la cuenta del restaurante',
-                        'The restaurant bill has already been saved and distributed'
-                      )
-                    : ''
-              }
-            >
-              {submittingRestaurantBill
-                ? tr('Guardando...', 'Saving...')
-                : vaca?.restaurantBillTotal
-                  ? tr('Ya Distribuido', 'Already distributed')
-                  : tr('Guardar y Distribuir Diferencia', 'Save and distribute difference')}
-            </button>
-            {vaca?.restaurantBillTotal && (
-              <p className="text-xs text-green-600 mt-2">
-                {tr(
-                  '✓ El valor de la cuenta del restaurante ya ha sido guardado y la diferencia distribuida.',
-                  '✓ The restaurant bill was saved and the difference was distributed.'
-                )}
-              </p>
-            )}
-          </form>
+            </form>
           </div>
         )}
 
@@ -1697,104 +1707,103 @@ export default function VaqueroDashboard() {
                   Aún no hay comensales registrados. Comparte el QR para que se unan.
                 </p>
               ) : (
-              comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
-                // Calculate total for this comensal
-                const comensalProducts = vaca.products.filter(
-                  (p) => p.comensalId === comensal.id
-                );
-                const comensalSubtotal = comensalProducts.reduce(
-                  (sum, p) => sum + p.valorEnCarta * p.numero,
-                  0
-                );
-                const comensalTip = comensalSubtotal * tipRate;
-                const comensalTotal = comensalSubtotal + comensalTip;
+                comensales.filter((c) => !c.mergedIntoId).map((comensal) => {
+                  // Calculate total for this comensal
+                  const comensalProducts = vaca.products.filter(
+                    (p) => p.comensalId === comensal.id
+                  );
+                  const comensalSubtotal = comensalProducts.reduce(
+                    (sum, p) => sum + p.valorEnCarta * p.numero,
+                    0
+                  );
+                  const comensalTip = comensalSubtotal * tipRate;
+                  const comensalTotal = comensalSubtotal + comensalTip;
 
-                // Check if comensal has paid
-                const comensalPayment = payments.find(
-                  (p) => p.comensalId === comensal.id
-                );
-                const hasPaid = !!comensalPayment;
+                  // Check if comensal has paid
+                  const comensalPayment = payments.find(
+                    (p) => p.comensalId === comensal.id
+                  );
+                  const hasPaid = !!comensalPayment;
 
-                return (
-                  <div
-                    key={comensal.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg gap-2"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{comensal.name}</p>
-                      <p className="text-sm text-gray-600">
-                        {tr('Se unió el', 'Joined on')}{' '}
-                        {new Date(comensal.joinedAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
-                      </p>
-                      {advancedFeaturesEnabled && (
-                        <>
-                          <div className="mt-2">
-                            <div className="flex flex-nowrap gap-2 items-center">
-                              <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                                {tr('Fusionar con', 'Merge into')}
-                              </span>
-                              <select
-                                value={mergeTargetByComensalId[comensal.id] || ''}
-                                onChange={(e) =>
-                                  setMergeTargetByComensalId((prev) => ({
-                                    ...prev,
-                                    [comensal.id]: e.target.value,
-                                  }))
-                                }
-                                className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                              >
-                                <option value="">Selecciona un comensal...</option>
-                                {comensales
-                                  .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
-                                  .map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                              </select>
+                  return (
+                    <div
+                      key={comensal.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-gray-50 rounded-lg gap-2"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{comensal.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {tr('Se unió el', 'Joined on')}{' '}
+                          {new Date(comensal.joinedAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
+                        </p>
+                        {advancedFeaturesEnabled && (
+                          <>
+                            <div className="mt-2">
+                              <div className="flex flex-nowrap gap-2 items-center">
+                                <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                                  {tr('Fusionar con', 'Merge into')}
+                                </span>
+                                <select
+                                  value={mergeTargetByComensalId[comensal.id] || ''}
+                                  onChange={(e) =>
+                                    setMergeTargetByComensalId((prev) => ({
+                                      ...prev,
+                                      [comensal.id]: e.target.value,
+                                    }))
+                                  }
+                                  className="min-w-0 flex-1 h-8 px-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                >
+                                  <option value="">Selecciona un comensal...</option>
+                                  {comensales
+                                    .filter((c) => !c.mergedIntoId && c.id !== comensal.id)
+                                    .map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMergeComensales(comensal.id)}
+                                  disabled={!!mergingIds[comensal.id]}
+                                  className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
+                                </button>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {tr(
+                                  'Los productos de este comensal pasarán al comensal elegido.',
+                                  'This diner’s items will be moved to the selected diner.'
+                                )}
+                              </p>
+                            </div>
+                            {!hasPaid && comensalTotal > 0 && (
                               <button
                                 type="button"
-                                onClick={() => handleMergeComensales(comensal.id)}
-                                disabled={!!mergingIds[comensal.id]}
-                                className="h-8 px-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                onClick={() => handleMarkTransferred(comensal, comensalTotal)}
+                                disabled={!!markingPaidIds[comensal.id]}
+                                className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label={`Marcar como pagado: ${comensal.name}`}
+                                title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
                               >
-                                {mergingIds[comensal.id] ? 'Fusionando...' : 'Fusionar'}
+                                {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
                               </button>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {tr(
-                                'Los productos de este comensal pasarán al comensal elegido.',
-                                'This diner’s items will be moved to the selected diner.'
-                              )}
-                            </p>
-                          </div>
-                          {!hasPaid && comensalTotal > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleMarkTransferred(comensal, comensalTotal)}
-                              disabled={!!markingPaidIds[comensal.id]}
-                              className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                              aria-label={`Marcar como pagado: ${comensal.name}`}
-                              title="Simula el envío del pago del comensal: deshabilita su sesión y activa celebración"
-                            >
-                              {markingPaidIds[comensal.id] ? 'Registrando...' : 'Ya transfirió'}
-                            </button>
-                          )}
-                        </>
-                      )}
+                            )}
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center">
+                        <p
+                          className={`text-xl font-bold ${hasPaid ? 'text-green-600' : 'text-red-600'
+                            }`}
+                        >
+                          {formatMoney(comensalTotal)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center">
-                      <p
-                        className={`text-xl font-bold ${
-                          hasPaid ? 'text-green-600' : 'text-red-600'
-                        }`}
-                      >
-                        {formatMoney(comensalTotal)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })
               )}
             </div>
           </div>
@@ -1807,71 +1816,71 @@ export default function VaqueroDashboard() {
               {tr('Pagos Recibidos', 'Payments received')}
             </h2>
             {payments.length > 0 ? (
-            <>
-              <div className="space-y-3 mb-4">
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-800">
-                        {(comensales.find((c) => c.id === payment.comensalId)?.name) || 'Comensal'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {tr('Consignó', 'Paid by')}: {payment.consignadorName} ·{' '}
-                        {tr('Pagado el', 'Paid on')}{' '}
-                        {new Date(payment.paidAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
+              <>
+                <div className="space-y-3 mb-4">
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex justify-between items-center p-4 bg-green-50 rounded-lg border border-green-200"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {(comensales.find((c) => c.id === payment.comensalId)?.name) || 'Comensal'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {tr('Consignó', 'Paid by')}: {payment.consignadorName} ·{' '}
+                          {tr('Pagado el', 'Paid on')}{' '}
+                          {new Date(payment.paidAt as string | Date).toLocaleString(isEn ? 'en-GB' : 'es-CO')}
+                        </p>
+                      </div>
+                      <p className="text-lg font-semibold text-green-700">
+                        {formatMoney(payment.amount)}
                       </p>
                     </div>
-                    <p className="text-lg font-semibold text-green-700">
-                      {formatMoney(payment.amount)}
-                    </p>
+                  ))}
+                </div>
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex justify-between text-xl font-bold text-gray-800">
+                    <span>{tr('Total Recaudado', 'Total collected')}:</span>
+                    <span className={
+                      totalCollectedRounded > totalRounded
+                        ? 'text-violet-600'
+                        : totalCollectedRounded < totalRounded
+                          ? 'text-red-600'
+                          : 'text-green-700'
+                    }>
+                      {formatMoney(totalCollected)}
+                    </span>
                   </div>
-                ))}
-              </div>
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex justify-between text-xl font-bold text-gray-800">
-                  <span>{tr('Total Recaudado', 'Total collected')}:</span>
-                  <span className={
-                    totalCollectedRounded > totalRounded 
-                      ? 'text-violet-600' 
-                      : totalCollectedRounded < totalRounded 
-                        ? 'text-red-600' 
-                        : 'text-green-700'
-                  }>
-                    {formatMoney(totalCollected)}
-                  </span>
+                  <div className="flex justify-between text-sm text-gray-600 mt-2">
+                    <span>{tr('Total Esperado', 'Expected total')}:</span>
+                    <span>{formatMoney(total)}</span>
+                  </div>
+                  {totalCollectedRounded > totalRounded && (
+                    <p className="text-sm text-violet-600 font-medium mt-2">
+                      {tr(
+                        '⚠ Se ha recibido más del total esperado',
+                        '⚠ Collected more than expected'
+                      )}
+                    </p>
+                  )}
+                  {totalCollectedRounded === totalRounded && (
+                    <p className="text-sm text-green-600 font-medium mt-2">
+                      {tr('✓ Todos los pagos han sido recibidos', '✓ All payments have been received')}
+                    </p>
+                  )}
+                  {totalCollectedRounded < totalRounded && (
+                    <p className="text-sm text-red-600 font-medium mt-2">
+                      {tr('Pendiente', 'Pending')}: {formatMoney(totalRounded - totalCollectedRounded)}
+                    </p>
+                  )}
                 </div>
-                <div className="flex justify-between text-sm text-gray-600 mt-2">
-                  <span>{tr('Total Esperado', 'Expected total')}:</span>
-                  <span>{formatMoney(total)}</span>
-                </div>
-                {totalCollectedRounded > totalRounded && (
-                  <p className="text-sm text-violet-600 font-medium mt-2">
-                    {tr(
-                      '⚠ Se ha recibido más del total esperado',
-                      '⚠ Collected more than expected'
-                    )}
-                  </p>
-                )}
-                {totalCollectedRounded === totalRounded && (
-                  <p className="text-sm text-green-600 font-medium mt-2">
-                    {tr('✓ Todos los pagos han sido recibidos', '✓ All payments have been received')}
-                  </p>
-                )}
-                {totalCollectedRounded < totalRounded && (
-                  <p className="text-sm text-red-600 font-medium mt-2">
-                    {tr('Pendiente', 'Pending')}: {formatMoney(totalRounded - totalCollectedRounded)}
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="text-gray-500 text-center py-8">
-              {tr('Aún no se han registrado pagos', 'No payments recorded yet')}
-            </p>
-          )}
+              </>
+            ) : (
+              <p className="text-gray-500 text-center py-8">
+                {tr('Aún no se han registrado pagos', 'No payments recorded yet')}
+              </p>
+            )}
           </div>
         )}
 
@@ -1891,9 +1900,9 @@ export default function VaqueroDashboard() {
             />
             {paymentQR ? (
               <div className="flex flex-col items-center mb-4">
-                <Image 
-                  src={paymentQR} 
-                  alt="Payment QR" 
+                <Image
+                  src={paymentQR}
+                  alt="Payment QR"
                   width={300}
                   height={300}
                   className="max-w-full h-auto mb-4 rounded-lg"
@@ -1914,7 +1923,7 @@ export default function VaqueroDashboard() {
                 {tr('Subir QR de Pago', 'Upload payment QR')}
               </button>
             )}
-            
+
             {/* Bre-B Key Section */}
             <div className="border-t border-gray-200 pt-4 mt-4">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
@@ -2013,53 +2022,53 @@ export default function VaqueroDashboard() {
           </div>
         )}
 
+
         {/* Botones de Acción */}
-        {comensales.length > 0 && (
-          <div className="mt-6 flex justify-center gap-4 flex-wrap">
-            <button
-              onClick={generatePDF}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-              aria-label="Exportar informe en PDF"
+        <div className="mt-6 flex justify-center gap-4 flex-wrap">
+          <button
+            onClick={generatePDF}
+            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            aria-label="Exportar informe en PDF"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              {tr('Exportar Informe PDF', 'Export PDF report')}
-            </button>
-            <button
-              onClick={() => router.push('/')}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-              aria-label="Crear nueva vaca"
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            {tr('Exportar Informe PDF', 'Export PDF report')}
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            aria-label="Crear nueva vaca"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {tr('Nueva Vaca', 'New session')}
-            </button>
-          </div>
-        )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            {tr('Nueva Vaca', 'New session')}
+          </button>
+        </div>
+
       </div>
     </div>
   );

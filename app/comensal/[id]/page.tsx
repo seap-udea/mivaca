@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
 import { Vaca, Product, Payment } from '@/types';
@@ -12,15 +12,27 @@ import { getClientLang, type Lang } from '@/lib/langClient';
 export default function ComensalPage() {
   const tutorialUrl = 'https://youtu.be/c7hhAPqXyRY';
   const params = useParams();
+  const searchParams = useSearchParams();
   const vacaId = params.id as string;
-  const [lang, setLang] = useState<Lang>('es');
+
+  // Read lang from URL parameter first, fallback to 'es'
+  const urlLang = searchParams.get('lang');
+  const initialLang: Lang = (urlLang === 'en' || urlLang === 'es') ? urlLang : 'es';
+
+  const [lang, setLang] = useState<Lang>(initialLang);
+
   useEffect(() => {
     try {
+      const langParam = searchParams.get('lang');
+      if (langParam === 'en' || langParam === 'es') {
+        setLang(langParam);
+      }
       window.sessionStorage.setItem('returnTo', `/comensal/${vacaId}`);
     } catch {
       // ignore
     }
-  }, [vacaId]);
+  }, [vacaId, searchParams]);
+
   const isEn = lang === 'en';
   const tr = useCallback((es: string, en: string) => (isEn ? en : es), [isEn]);
   const moneyFormatter = useMemo(() => {
@@ -104,8 +116,11 @@ export default function ComensalPage() {
       const data = await response.json();
       if (data.vaca) {
         setVaca(data.vaca);
-        // Lock language to the vaca's language once the session exists.
-        if (data.vaca.lang === 'en' || data.vaca.lang === 'es') {
+        // Use URL parameter lang if available, otherwise use vaca's lang
+        const urlLang = searchParams.get('lang');
+        if (urlLang === 'en' || urlLang === 'es') {
+          setLang(urlLang);
+        } else if (data.vaca.lang === 'en' || data.vaca.lang === 'es') {
           setLang(data.vaca.lang);
         } else {
           setLang(getClientLang());
@@ -116,11 +131,12 @@ export default function ComensalPage() {
       console.error('Error fetching vaca:', error);
       setLoading(false);
     }
-  }, [vacaId]);
+  }, [vacaId, searchParams]);
+
 
   const fetchPayments = useCallback(async () => {
     if (!comensalId) return;
-    
+
     try {
       const response = await fetch(`/api/vaca/${vacaId}/payments`);
       if (!response.ok) return;
@@ -253,7 +269,7 @@ export default function ComensalPage() {
             }),
           })
         );
-      
+
       await Promise.all(promises);
       // Clear form
       setProducts([{ producto: '', valorEnCarta: 0, numero: 1 }]);
@@ -275,7 +291,7 @@ export default function ComensalPage() {
       );
       return;
     }
-    
+
     if (!vacaId) {
       alert(
         tr(
@@ -285,7 +301,7 @@ export default function ComensalPage() {
       );
       return;
     }
-    
+
     if (!confirm(tr('¿Estás seguro de que quieres eliminar este producto?', 'Are you sure you want to delete this item?'))) {
       return;
     }
@@ -325,7 +341,7 @@ export default function ComensalPage() {
 
   const handleSubmitPayment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!comensalId) {
       alert(
         tr(
@@ -335,19 +351,19 @@ export default function ComensalPage() {
       );
       return;
     }
-    
+
     if (!consignadorName.trim()) {
       alert(tr('Por favor ingresa el nombre de quién consigna', 'Please enter the payer name'));
       return;
     }
-    
+
     // Improved validation: trim and parse the amount
     const trimmedAmount = paymentAmount.trim();
     if (!trimmedAmount) {
       alert(tr('Por favor ingresa el valor pagado', 'Please enter the paid amount'));
       return;
     }
-    
+
     const amountValue = parseFloat(trimmedAmount);
     if (isNaN(amountValue) || amountValue <= 0 || !isFinite(amountValue)) {
       alert(tr('Por favor ingresa un valor válido mayor a 0', 'Please enter a valid amount greater than 0'));
@@ -376,10 +392,10 @@ export default function ComensalPage() {
       setConsignadorName('');
       setPaymentAmount('');
       setHasPaid(true);
-      
+
       // Trigger confetti celebration when payment is successfully registered
       launchConfetti();
-      
+
       fetchVaca();
       fetchPayments();
     } catch (error) {
@@ -409,7 +425,7 @@ export default function ComensalPage() {
 
     // If we don't have the name (e.g. old sessions), fetch it once
     fetchComensalInfo();
-    
+
     // Poll for updates every 2 seconds
     const interval = setInterval(() => {
       fetchVaca();
@@ -423,12 +439,12 @@ export default function ComensalPage() {
     () => vaca?.products.filter((p) => p.comensalId === comensalId) ?? [],
     [vaca?.products, comensalId]
   );
-  
+
   const mySubtotal = useMemo(
     () => myProducts.reduce((sum, p) => sum + p.valorEnCarta * p.numero, 0),
     [myProducts]
   );
-  
+
   const tipPercent = useMemo(() => vaca?.tipPercent ?? 10, [vaca?.tipPercent]);
   const tipRate = useMemo(() => tipPercent / 100, [tipPercent]);
 
@@ -456,9 +472,9 @@ export default function ComensalPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="flex justify-center mb-4">
-            <Image 
-              src="/vaca-esferica-jz.webp" 
-              alt="Vaca Esférica" 
+            <Image
+              src="/vaca-esferica-jz.webp"
+              alt="Vaca Esférica"
               width={80}
               height={80}
               className="object-contain"
@@ -471,7 +487,7 @@ export default function ComensalPage() {
           <p className="text-gray-600 text-center mb-6">
             {vaca.vaqueroName ? `${vaca.name} by ${vaca.vaqueroName}` : vaca.name}
           </p>
-          
+
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
               <label htmlFor="comensalName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -489,7 +505,7 @@ export default function ComensalPage() {
                 {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
               </p>
             </div>
-            
+
             <button
               type="submit"
               className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
@@ -508,9 +524,9 @@ export default function ComensalPage() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex justify-center mb-4">
-            <Image 
-              src="/vaca-esferica-jz.webp" 
-              alt="Vaca Esférica" 
+            <Image
+              src="/vaca-esferica-jz.webp"
+              alt="Vaca Esférica"
               width={80}
               height={80}
               className="object-contain"
@@ -567,7 +583,7 @@ export default function ComensalPage() {
           {(hasPaid || vaca?.restaurantBillTotal) && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                {hasPaid 
+                {hasPaid
                   ? tr('Ya has realizado tu pago. No puedes agregar más productos.', "You've already paid. You can't add more items.")
                   : tr('El valor total de la cuenta ya ha sido establecido. No se pueden agregar más productos.', 'The restaurant bill total has been set. No more items can be added.')}
               </p>
@@ -648,7 +664,7 @@ export default function ComensalPage() {
                 </div>
               </div>
             ))}
-            
+
             <div className="flex gap-2">
               <button
                 type="button"
@@ -698,9 +714,9 @@ export default function ComensalPage() {
                       disabled={hasPaid || !!vaca?.restaurantBillTotal || product.addedByVaquero}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={
-                        hasPaid 
-                          ? "No puedes eliminar productos después de pagar" 
-                          : vaca?.restaurantBillTotal 
+                        hasPaid
+                          ? "No puedes eliminar productos después de pagar"
+                          : vaca?.restaurantBillTotal
                             ? "No puedes eliminar productos después de establecer el valor total de la cuenta"
                             : product.addedByVaquero
                               ? "No puedes eliminar productos agregados por el vaquero"
@@ -806,59 +822,59 @@ export default function ComensalPage() {
                   </p>
                 </div>
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
-              <div>
-                <label htmlFor="consignadorName" className="block text-sm font-medium text-gray-700 mb-2">
-                  {tr('Nombre de quién consigna', 'Payer name')}
-                </label>
-                <input
-                  id="consignadorName"
-                  type="text"
-                  value={consignadorName}
-                  onChange={(e) => setConsignadorName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={hasPaid}
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
-                </p>
-              </div>
-              <div>
-                <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                  {tr('Valor pagado', 'Amount paid')}
-                </label>
-                <input
-                  id="paymentAmount"
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  min="0"
-                  step={isEn ? '0.01' : '1'}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={hasPaid}
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {tr(
-                    "Ingresa el valor en número sin puntos, ni signo '$'",
-                    'Enter the amount as a number'
-                  )}
-                </p>
-              </div>
-              <button
-                type="submit"
-                disabled={submittingPayment || hasPaid}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Registrar pago"
-              >
-                {submittingPayment ? tr('Enviando...', 'Sending...') : tr('Enviar', 'Send')}
-              </button>
-            </form>
+                  <div>
+                    <label htmlFor="consignadorName" className="block text-sm font-medium text-gray-700 mb-2">
+                      {tr('Nombre de quién consigna', 'Payer name')}
+                    </label>
+                    <input
+                      id="consignadorName"
+                      type="text"
+                      value={consignadorName}
+                      onChange={(e) => setConsignadorName(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={hasPaid}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {tr('Ej. Juan Pérez', 'e.g. Alex Smith')}
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="paymentAmount" className="block text-sm font-medium text-gray-700 mb-2">
+                      {tr('Valor pagado', 'Amount paid')}
+                    </label>
+                    <input
+                      id="paymentAmount"
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      min="0"
+                      step={isEn ? '0.01' : '1'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={hasPaid}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {tr(
+                        "Ingresa el valor en número sin puntos, ni signo '$'",
+                        'Enter the amount as a number'
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submittingPayment || hasPaid}
+                    className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Registrar pago"
+                  >
+                    {submittingPayment ? tr('Enviando...', 'Sending...') : tr('Enviar', 'Send')}
+                  </button>
+                </form>
               </>
             )}
           </div>
         )}
-        
+
         {/* Banners manuales de restaurantes */}
         {restaurantAds.length > 0 ? (
           <div className="mt-6">

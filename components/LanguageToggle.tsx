@@ -37,6 +37,11 @@ export default function LanguageToggle() {
     []
   );
 
+  // Don't show language toggle in comensal session
+  if (pathname?.startsWith("/comensal/")) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col items-center gap-1">
       {buttons.map((b) => {
@@ -57,16 +62,15 @@ export default function LanguageToggle() {
               // ensure server components re-render with the updated cookie.
               window.location.reload();
             }}
-            className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border shadow-sm transition-colors ${
-              active
+            className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border shadow-sm transition-colors ${active
                 ? "bg-white border-indigo-400 ring-2 ring-indigo-300"
                 : "bg-white/80 border-gray-200 hover:bg-white opacity-80"
-            }`}
+              }`}
             title={
               locked
                 ? (lang === "en"
-                    ? "Language is locked for this session"
-                    : "El idioma está bloqueado para esta sesión")
+                  ? "Language is locked for this session"
+                  : "El idioma está bloqueado para esta sesión")
                 : b.label
             }
             aria-label={b.label}

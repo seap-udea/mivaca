@@ -18,7 +18,32 @@ function parseCookieHeader(cookieHeader: string | null): Record<string, string> 
 }
 
 export async function getLang(): Promise<Lang> {
-  // Next 16+ may return async request stores; handle both sync and async shapes.
+  // First, try to get lang from URL query parameter
+  try {
+    const maybeHeaders = headers();
+    const h: any =
+      typeof (maybeHeaders as any)?.then === "function" ? await (maybeHeaders as any) : maybeHeaders;
+
+    if (h && typeof h.get === "function") {
+      // Get the full URL from headers
+      const referer = h.get("referer");
+      if (referer) {
+        try {
+          const url = new URL(referer);
+          const langParam = url.searchParams.get("lang");
+          if (langParam === "en" || langParam === "es") {
+            return langParam;
+          }
+        } catch {
+          // ignore URL parse errors
+        }
+      }
+    }
+  } catch {
+    // fall through to cookies
+  }
+
+  // Next, try to read from cookies
   try {
     const maybeStore = cookies();
     const store: any =
